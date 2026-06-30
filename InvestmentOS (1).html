@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="InvestmentOS">
+<meta name="theme-color" content="#07080A">
+<title>InvestmentOS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#07080A;
+  --bg-elevated:#0E1013;
+  --surface:#131519;
+  --surface-2:#1A1D22;
+  --glass:rgba(255,255,255,0.045);
+  --glass-border:rgba(255,255,255,0.085);
+  --hairline:rgba(255,255,255,0.07);
+  --text:#F5F5F7;
+  --text-secondary:#98989F;
+  --text-tertiary:#5C5C61;
+  --gain:#32D74B;
+  --gain-dim:rgba(50,215,75,0.14);
+  --loss:#FF453A;
+  --loss-dim:rgba(255,69,58,0.14);
+  --gold:#D8B868;
+  --gold-dim:rgba(216,184,104,0.16);
+  --blue:#409CFF;
+  --purple:#BF7AF0;
+  --radius-lg:22px;
+  --radius-md:16px;
+  --radius-sm:10px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(64,156,255,0.10), transparent 60%),
+    radial-gradient(700px 500px at 110% 10%, rgba(216,184,104,0.07), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  min-height:100vh;
+  padding-bottom:96px;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"SF Mono",ui-monospace,"Menlo",Consolas,monospace; font-variant-numeric: tabular-nums;}
+
+/* ---------- header ---------- */
+header.top{
+  position:sticky; top:0; z-index:40;
+  padding:calc(env(safe-area-inset-top) + 14px) 20px 12px;
+  backdrop-filter:blur(20px) saturate(150%);
+  -webkit-backdrop-filter:blur(20px) saturate(150%);
+  background:rgba(7,8,10,0.72);
+  border-bottom:1px solid var(--hairline);
+}
+.top-row{display:flex; align-items:center; justify-content:space-between;}
+.brand{display:flex; align-items:center; gap:9px;}
+.brand-dot{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple)); box-shadow:0 0 12px rgba(64,156,255,0.6);}
+.brand-name{font-size:15px; font-weight:650; letter-spacing:-0.01em;}
+.brand-sub{font-size:11px; color:var(--text-tertiary); margin-left:1px;}
+.today-pill{font-size:12px; color:var(--text-secondary); font-weight:500;}
+
+main{max-width:560px; margin:0 auto; padding:18px 16px 0;}
+
+/* ---------- hero ---------- */
+.hero{
+  position:relative; overflow:hidden;
+  border-radius:28px;
+  padding:26px 22px 20px;
+  background:linear-gradient(165deg, rgba(255,255,255,0.07), rgba(255,255,255,0.015) 55%), var(--surface);
+  border:1px solid var(--glass-border);
+  box-shadow:0 30px 60px -30px rgba(0,0,0,0.6);
+  margin-bottom:14px;
+}
+.hero-spark{position:absolute; inset:0; opacity:0.55; pointer-events:none;}
+.hero-label{font-size:13px; color:var(--text-secondary); font-weight:550; letter-spacing:0.01em; position:relative;}
+.hero-value{font-size:44px; font-weight:700; letter-spacing:-0.03em; margin:6px 0 10px; position:relative; line-height:1;}
+.hero-value sup{font-size:22px; font-weight:600; opacity:0.55; margin-right:2px;}
+.delta-row{display:flex; align-items:center; gap:8px; position:relative; flex-wrap:wrap;}
+.chip{
+  display:inline-flex; align-items:center; gap:4px;
+  padding:5px 10px 5px 8px; border-radius:100px;
+  font-size:13px; font-weight:650;
+}
+.chip.gain{background:var(--gain-dim); color:var(--gain);}
+.chip.loss{background:var(--loss-dim); color:var(--loss);}
+.chip svg{width:11px;height:11px;}
+.hero-meta{font-size:12.5px; color:var(--text-tertiary); position:relative;}
+
+/* ---------- segmented control ---------- */
+.segmented{
+  display:flex; gap:3px; background:var(--surface); border:1px solid var(--hairline);
+  border-radius:14px; padding:3px; margin-bottom:16px;
+  position:sticky; top:64px; z-index:30;
+  backdrop-filter:blur(16px);
+}
+.seg-btn{
+  flex:1; text-align:center; padding:9px 4px; border-radius:11px;
+  font-size:12.5px; font-weight:600; color:var(--text-secondary);
+  background:transparent; border:none; cursor:pointer; transition:all .25s ease;
+  font-family:inherit;
+}
+.seg-btn.active{background:var(--surface-2); color:var(--text); box-shadow:0 2px 10px rgba(0,0,0,0.3);}
+
+.panel{display:none; animation:fadein .35s ease;}
+.panel.active{display:block;}
+@keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+
+/* ---------- stat grid ---------- */
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;}
+.tile{
+  background:var(--surface); border:1px solid var(--hairline); border-radius:var(--radius-md);
+  padding:14px 14px 13px;
+}
+.tile-label{font-size:11.5px; color:var(--text-tertiary); font-weight:600; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;}
+.tile-value{font-size:19px; font-weight:650; letter-spacing:-0.015em;}
+.tile-sub{font-size:12px; margin-top:4px; font-weight:600;}
+.tile-sub.gain{color:var(--gain);} .tile-sub.loss{color:var(--loss);} .tile-sub.neutral{color:var(--text-tertiary);}
+
+/* ---------- card ---------- */
+.card{
+  background:var(--surface); border:1px solid var(--hairline); border-radius:var(--radius-lg);
+  padding:18px 16px 14px; margin-bottom:14px;
+}
+.card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+.card-title{font-size:15px; font-weight:650; letter-spacing:-0.01em;}
+.card-title-sub{font-size:11.5px; color:var(--text-tertiary); margin-top:1px;}
+.range-toggle{display:flex; gap:4px;}
+.range-btn{
+  font-size:11px; font-weight:650; padding:5px 9px; border-radius:8px; border:none;
+  background:transparent; color:var(--text-tertiary); cursor:pointer; font-family:inherit;
+}
+.range-btn.active{background:var(--surface-2); color:var(--text);}
+.chart-wrap{position:relative; height:190px;}
+.chart-wrap.donut{height:200px;}
+
+/* ---------- holdings list ---------- */
+.holding-row{display:flex; align-items:center; padding:11px 0; border-bottom:1px solid var(--hairline);}
+.holding-row:last-child{border-bottom:none;}
+.holding-badge{
+  width:38px;height:38px;border-radius:11px; display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; margin-right:12px; flex-shrink:0; color:#07080A;
+}
+.holding-main{flex:1; min-width:0;}
+.holding-sym{font-size:14.5px; font-weight:650;}
+.holding-cost{font-size:11.5px; color:var(--text-tertiary); margin-top:1px;}
+.holding-right{text-align:right;}
+.holding-val{font-size:14.5px; font-weight:650;}
+.holding-pct{font-size:11.5px; margin-top:1px; font-weight:600;}
+.bar-track{height:4px; border-radius:4px; background:var(--surface-2); margin-top:7px; overflow:hidden;}
+.bar-fill{height:100%; border-radius:4px;}
+
+/* ---------- legend ---------- */
+.legend{display:flex; flex-wrap:wrap; gap:10px 16px; justify-content:center; margin-top:8px;}
+.legend-item{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); font-weight:550;}
+.legend-dot{width:8px;height:8px;border-radius:50%;}
+
+/* ---------- forms ---------- */
+.field{margin-bottom:13px;}
+.field label{display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:6px;}
+.field input, .field textarea{
+  width:100%; background:var(--surface-2); border:1px solid var(--hairline); color:var(--text);
+  border-radius:12px; padding:11px 13px; font-size:15px; font-family:inherit; outline:none;
+}
+.field input:focus, .field textarea:focus{border-color:var(--blue);}
+.field-row{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.btn{
+  width:100%; padding:14px; border-radius:14px; border:none; font-size:15px; font-weight:650;
+  font-family:inherit; cursor:pointer; transition:transform .15s ease, opacity .15s ease;
+}
+.btn:active{transform:scale(0.98);}
+.btn-primary{background:linear-gradient(135deg,#409CFF,#5E5CE6); color:white;}
+.btn-secondary{background:var(--surface-2); color:var(--text); border:1px solid var(--hairline);}
+.btn-row{display:flex; gap:10px; margin-top:4px;}
+.btn-row .btn{flex:1;}
+
+table.entries{width:100%; border-collapse:collapse; font-size:13px;}
+table.entries th{text-align:right; font-size:10.5px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.04em; padding:0 6px 8px; font-weight:650;}
+table.entries th:first-child, table.entries td:first-child{text-align:left;}
+table.entries td{text-align:right; padding:9px 6px; border-top:1px solid var(--hairline); font-weight:550;}
+.scroll-x{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -16px; padding:0 16px;}
+.del-btn{background:none;border:none;color:var(--loss);font-size:16px;cursor:pointer;padding:0 4px;}
+
+.empty{text-align:center; padding:40px 20px; color:var(--text-tertiary); font-size:13px;}
+
+footer.tabbar{
+  position:fixed; bottom:0; left:0; right:0; z-index:50;
+  display:flex; padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);
+  background:rgba(10,11,13,0.82); backdrop-filter:blur(22px) saturate(160%);
+  border-top:1px solid var(--hairline);
+}
+.tab-btn{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+  background:none; border:none; color:var(--text-tertiary); font-size:10.5px; font-weight:600;
+  padding:5px 0; cursor:pointer; font-family:inherit;
+}
+.tab-btn.active{color:var(--text);}
+.tab-btn svg{width:22px;height:22px;}
+.tab-btn.active svg{filter:drop-shadow(0 0 6px rgba(64,156,255,0.5));}
+
+.toast{
+  position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--surface-2); border:1px solid var(--hairline); padding:11px 18px;
+  border-radius:100px; font-size:13px; font-weight:600; opacity:0; transition:all .3s ease;
+  pointer-events:none; z-index:60; white-space:nowrap; box-shadow:0 10px 30px rgba(0,0,0,0.4);
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+.export-row{display:flex; gap:10px;}
+.export-row .btn{flex:1; display:flex; align-items:center; justify-content:center; gap:7px; font-size:13.5px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-row">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <div>
+        <div class="brand-name">InvestmentOS</div>
+      </div>
+    </div>
+    <div class="today-pill" id="todayPill"></div>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero" id="heroCard">
+    <canvas class="hero-spark" id="heroSpark"></canvas>
+    <div class="hero-label">Net Worth</div>
+    <div class="hero-value mono" id="heroValue">$0</div>
+    <div class="delta-row">
+      <span class="chip gain" id="heroDelta"></span>
+      <span class="hero-meta" id="heroDeltaLabel"></span>
+    </div>
+  </div>
+
+  <div class="segmented">
+    <button class="seg-btn active" data-panel="overview">Overview</button>
+    <button class="seg-btn" data-panel="holdings">Holdings</button>
+    <button class="seg-btn" data-panel="history">History</button>
+    <button class="seg-btn" data-panel="edit">Edit</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="panel active" id="panel-overview">
+    <div class="grid2">
+      <div class="tile">
+        <div class="tile-label">US Stocks</div>
+        <div class="tile-value mono" id="statStock">$0</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Gold</div>
+        <div class="tile-value mono" id="statGold">$0</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Cash</div>
+        <div class="tile-value mono" id="statCash">$0</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Cost of Capital</div>
+        <div class="tile-value mono" id="statCost">$0</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Unrealized Profit</div>
+        <div class="tile-value mono" id="statUnreal">$0</div>
+        <div class="tile-sub" id="statUnrealPct">—</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Realized Profit</div>
+        <div class="tile-value mono" id="statReal">$0</div>
+        <div class="tile-sub" id="statRealPct">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Portfolio Value</div>
+          <div class="card-title-sub" id="portfolioRangeLabel">Last 90 days</div>
+        </div>
+        <div class="range-toggle" id="rangeToggle">
+          <button class="range-btn" data-range="30">1M</button>
+          <button class="range-btn active" data-range="90">3M</button>
+          <button class="range-btn" data-range="365">1Y</button>
+          <button class="range-btn" data-range="all">All</button>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="portfolioChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Asset Allocation</div>
+          <div class="card-title-sub">Stocks · Gold · Cash</div>
+        </div>
+      </div>
+      <div class="chart-wrap donut"><canvas id="allocChart"></canvas></div>
+      <div class="legend" id="allocLegend"></div>
+    </div>
+  </div>
+
+  <!-- HOLDINGS -->
+  <div class="panel" id="panel-holdings">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Holdings</div>
+          <div class="card-title-sub" id="holdingsSub">By current value</div>
+        </div>
+      </div>
+      <div id="holdingsList"></div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="panel" id="panel-history">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Daily Log</div>
+          <div class="card-title-sub" id="historyCount">0 entries</div>
+        </div>
+      </div>
+      <div class="scroll-x">
+        <table class="entries" id="entriesTable">
+          <thead>
+            <tr><th>Date</th><th>Stocks</th><th>Gold</th><th>Cash</th><th>Total</th><th></th></tr>
+          </thead>
+          <tbody id="entriesBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT -->
+  <div class="panel" id="panel-edit">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Add Daily Entry</div></div>
+      <form id="entryForm">
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="f_date" required>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>US Stock Value</label>
+            <input type="number" step="0.01" id="f_stock" placeholder="0.00" required>
+          </div>
+          <div class="field">
+            <label>Gold Value</label>
+            <input type="number" step="0.01" id="f_gold" placeholder="0.00" required>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Cash</label>
+            <input type="number" step="0.01" id="f_cash" placeholder="0.00" required>
+          </div>
+          <div class="field">
+            <label>Cost of Capital</label>
+            <input type="number" step="0.01" id="f_cost" placeholder="0.00" required>
+          </div>
+        </div>
+        <div class="field">
+          <label>Notes (optional)</label>
+          <textarea id="f_notes" rows="2" placeholder="What happened today?"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Entry</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-title">Edit Holding (Cost Basis)</div></div>
+      <div class="field">
+        <label>Symbol</label>
+        <input list="symbolList" id="h_symbol" placeholder="e.g. NVDA">
+        <datalist id="symbolList"></datalist>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Cost Basis</label>
+          <input type="number" step="0.01" id="h_cost" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label>Current Value</label>
+          <input type="number" step="0.01" id="h_value" placeholder="0.00">
+        </div>
+      </div>
+      <button type="button" class="btn btn-secondary" id="saveHoldingBtn">Save Holding</button>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-title">Export</div></div>
+      <div class="export-row">
+        <button class="btn btn-secondary" id="exportXlsxBtn">⇩ Excel (.xlsx)</button>
+        <button class="btn btn-secondary" id="exportCsvBtn">⇩ CSV</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-title">Reset</div></div>
+      <button class="btn btn-secondary" id="resetBtn" style="color:var(--loss)">Clear All My Data</button>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<footer class="tabbar">
+  <button class="tab-btn active" data-panel="overview">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2 4 4 8-8 4 4"/></svg>
+    Overview
+  </button>
+  <button class="tab-btn" data-panel="holdings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    Holdings
+  </button>
+  <button class="tab-btn" data-panel="history">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16M8 15l3-3 3 2 4-5"/></svg>
+    History
+  </button>
+  <button class="tab-btn" data-panel="edit">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    Edit
+  </button>
+</footer>
+
+<script id="seed-history" type="application/json">[{"date": "2025-08-19", "usStock": 13625.34, "gold": 0, "cash": 482.15, "portfolio": 14107.49, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 1.1383131486711007, "realizedPct": 1.1383131486711007}, {"date": "2025-08-20", "usStock": 13559.8, "gold": 0, "cash": 482.15, "portfolio": 14041.949999999999, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 0.6684489103293407, "realizedPct": 0.6684489103293407}, {"date": "2025-08-21", "usStock": 13531.93, "gold": 0, "cash": 482.15, "portfolio": 14014.08, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 0.46864548764725056, "realizedPct": 0.46864548764725056}, {"date": "2025-08-22", "usStock": 13735.96, "gold": 0, "cash": 482.15, "portfolio": 14218.109999999999, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 1.931361394709616, "realizedPct": 1.931361394709616}, {"date": "2025-08-23", "usStock": 13735.96, "gold": 0, "cash": 482.15, "portfolio": 14218.109999999999, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 1.931361394709616, "realizedPct": 1.931361394709616}, {"date": "2025-08-24", "usStock": 13735.96, "gold": 0, "cash": 482.15, "portfolio": 14218.109999999999, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 1.931361394709616, "realizedPct": 1.931361394709616}, {"date": "2025-08-25", "usStock": 13613.51, "gold": 0, "cash": 482.15, "portfolio": 14095.66, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 1.0535024385767624, "realizedPct": 1.0535024385767624}, {"date": "2025-08-26", "usStock": 13905.98, "gold": 0, "cash": 482.15, "portfolio": 14388.13, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 3.150255471652935, "realizedPct": 3.150255471652935}, {"date": "2025-08-27", "usStock": 13931.74, "gold": 0, "cash": 482.15, "portfolio": 14413.89, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 3.334932047479662, "realizedPct": 3.334932047479662}, {"date": "2025-08-28", "usStock": 13886.74, "gold": 0, "cash": 482.15, "portfolio": 14368.89, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 3.012321569521485, "realizedPct": 3.012321569521485}, {"date": "2025-08-29", "usStock": 13648.36, "gold": 0, "cash": 482.15, "portfolio": 14130.51, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 1.303346330951042, "realizedPct": 1.303346330951042}, {"date": "2025-08-30", "usStock": 13648.36, "gold": 0, "cash": 482.15, "portfolio": 14130.51, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 1.303346330951042, "realizedPct": 1.303346330951042}, {"date": "2025-08-31", "usStock": 13648.36, "gold": 0, "cash": 482.15, "portfolio": 14130.51, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 1.303346330951042, "realizedPct": 1.303346330951042}, {"date": "2025-09-01", "usStock": 13648.36, "gold": 0, "cash": 482.15, "portfolio": 14130.51, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 1.303346330951042, "realizedPct": 1.303346330951042}, {"date": "2025-09-02", "usStock": 13493.21, "gold": 0, "cash": 482.15, "portfolio": 13975.359999999999, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 0.1910570941685621, "realizedPct": 0.1910570941685621}, {"date": "2025-09-03", "usStock": 13720.08, "gold": 0, "cash": 482.15, "portfolio": 14202.23, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 1.8175157415990473, "realizedPct": 1.8175157415990473}, {"date": "2025-09-04", "usStock": 13770.63, "gold": 0, "cash": 482.15, "portfolio": 14252.779999999999, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 2.1799148451720605, "realizedPct": 2.1799148451720605}, {"date": "2025-09-05", "usStock": 13529.36, "gold": 0, "cash": 482.15, "portfolio": 14011.51, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 0.45022084479497454, "realizedPct": 0.45022084479497454}, {"date": "2025-09-06", "usStock": 13529.36, "gold": 0, "cash": 482.15, "portfolio": 14011.51, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 0.45022084479497454, "realizedPct": 0.45022084479497454}, {"date": "2025-09-07", "usStock": 13529.36, "gold": 0, "cash": 482.15, "portfolio": 14011.51, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 0.45022084479497454, "realizedPct": 0.45022084479497454}, {"date": "2025-09-08", "usStock": 13495.44, "gold": 0, "cash": 482.15, "portfolio": 13977.59, "privateCapital": 13948.71, "krungsriCapital": 0, "costOfCapital": 13948.71, "withdrawal": 0, "unrealizedPct": 0.20704423563183277, "realizedPct": 0.20704423563183277}, {"date": "2025-09-09", "usStock": 36101.47, "gold": 0, "cash": 482.15, "portfolio": 36583.62, "privateCapital": 36948.71, "krungsriCapital": 0, "costOfCapital": 36948.71, "withdrawal": 0, "unrealizedPct": -0.9880994492094487, "realizedPct": -0.9880994492094487}, {"date": "2025-09-10", "usStock": 36268.06, "gold": 0, "cash": 482.15, "portfolio": 36750.21, "privateCapital": 36948.71, "krungsriCapital": 0, "costOfCapital": 36948.71, "withdrawal": 0, "unrealizedPct": -0.5372312050948463, "realizedPct": -0.5372312050948463}, {"date": "2025-09-11", "usStock": 36470.34, "gold": 0, "cash": 482.15, "portfolio": 36952.49, "privateCapital": 36948.71, "krungsriCapital": 0, "costOfCapital": 36948.71, "withdrawal": 0, "unrealizedPct": 0.010230397759485612, "realizedPct": 0.010230397759485612}, {"date": "2025-09-12", "usStock": 46480.56, "gold": 3000, "cash": 482.15, "portfolio": 49962.71, "privateCapital": 50144.78, "krungsriCapital": 0, "costOfCapital": 50144.78, "withdrawal": 0, "unrealizedPct": -0.3630886405324736, "realizedPct": -0.3630886405324736}, {"date": "2025-09-13", "usStock": 46480.56, "gold": 3000, "cash": 482.15, "portfolio": 49962.71, "privateCapital": 50144.78, "krungsriCapital": 0, "costOfCapital": 50144.78, "withdrawal": 0, "unrealizedPct": -0.3630886405324736, "realizedPct": -0.3630886405324736}, {"date": "2025-09-14", "usStock": 46480.56, "gold": 3000, "cash": 482.15, "portfolio": 49962.71, "privateCapital": 50144.78, "krungsriCapital": 0, "costOfCapital": 50144.78, "withdrawal": 0, "unrealizedPct": -0.3630886405324736, "realizedPct": -0.3630886405324736}, {"date": "2025-09-15", "usStock": 61333.45, "gold": 3000, "cash": 482.15, "portfolio": 64815.6, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": -0.5053052600684204, "realizedPct": -0.5053052600684204}, {"date": "2025-09-16", "usStock": 61785.05, "gold": 3000, "cash": 482.15, "portfolio": 65267.200000000004, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 0.18791989166285547, "realizedPct": 0.18791989166285547}, {"date": "2025-09-17", "usStock": 61802.51, "gold": 3000, "cash": 482.15, "portfolio": 65284.66, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 0.21472173211730033, "realizedPct": 0.21472173211730033}, {"date": "2025-09-18", "usStock": 62161.76, "gold": 3000, "cash": 482.15, "portfolio": 65643.91, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 0.7661857174128222, "realizedPct": 0.7661857174128222}, {"date": "2025-09-19", "usStock": 63030.68, "gold": 3000, "cash": 482.15, "portfolio": 66512.82999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 2.100014767107953, "realizedPct": 2.100014767107953}, {"date": "2025-09-20", "usStock": 63030.68, "gold": 3000, "cash": 482.15, "portfolio": 66512.82999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 2.100014767107953, "realizedPct": 2.100014767107953}, {"date": "2025-09-21", "usStock": 63030.68, "gold": 3000, "cash": 482.15, "portfolio": 66512.82999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 2.100014767107953, "realizedPct": 2.100014767107953}, {"date": "2025-09-22", "usStock": 64389.08, "gold": 3000, "cash": 482.15, "portfolio": 67871.23, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 4.185216374972787, "realizedPct": 4.185216374972787}, {"date": "2025-09-23", "usStock": 63487.88, "gold": 3000, "cash": 482.15, "portfolio": 66970.03, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 2.8018361563274907, "realizedPct": 2.8018361563274907}, {"date": "2025-09-24", "usStock": 63974.23, "gold": 3000, "cash": 482.15, "portfolio": 67456.38, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 3.548404031758194, "realizedPct": 3.548404031758194}, {"date": "2025-09-25", "usStock": 63682.35, "gold": 3000, "cash": 482.15, "portfolio": 67164.5, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 3.1003558535311675, "realizedPct": 3.1003558535311675}, {"date": "2025-09-26", "usStock": 64600.13, "gold": 3000, "cash": 482.15, "portfolio": 68082.28, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 4.50918707531133, "realizedPct": 4.50918707531133}, {"date": "2025-09-27", "usStock": 64600.13, "gold": 3000, "cash": 482.15, "portfolio": 68082.28, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 4.50918707531133, "realizedPct": 4.50918707531133}, {"date": "2025-09-28", "usStock": 64600.13, "gold": 3000, "cash": 482.15, "portfolio": 68082.28, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 4.50918707531133, "realizedPct": 4.50918707531133}, {"date": "2025-09-29", "usStock": 64946.14, "gold": 3000, "cash": 482.15, "portfolio": 68428.29, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 5.040327099116759, "realizedPct": 5.040327099116759}, {"date": "2025-09-30", "usStock": 65645.44, "gold": 3000, "cash": 482.15, "portfolio": 69127.59, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 6.113782255462368, "realizedPct": 6.113782255462368}, {"date": "2025-10-01", "usStock": 67309.11, "gold": 3000, "cash": 482.15, "portfolio": 70791.26, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 8.667586259405583, "realizedPct": 8.667586259405583}, {"date": "2025-10-02", "usStock": 66615.37, "gold": 3000, "cash": 482.15, "portfolio": 70097.51999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 7.602665938851878, "realizedPct": 7.602665938851878}, {"date": "2025-10-03", "usStock": 66615.37, "gold": 3000, "cash": 482.15, "portfolio": 70097.51999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 7.602665938851878, "realizedPct": 7.602665938851878}, {"date": "2025-10-04", "usStock": 66615.37, "gold": 3000, "cash": 482.15, "portfolio": 70097.51999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 7.602665938851878, "realizedPct": 7.602665938851878}, {"date": "2025-10-05", "usStock": 66615.37, "gold": 3000, "cash": 482.15, "portfolio": 70097.51999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 7.602665938851878, "realizedPct": 7.602665938851878}, {"date": "2025-10-06", "usStock": 67315.14, "gold": 3000, "cash": 482.15, "portfolio": 70797.29, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 8.676842565129538, "realizedPct": 8.676842565129538}, {"date": "2025-10-07", "usStock": 66591.66, "gold": 3000, "cash": 482.15, "portfolio": 70073.81, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 7.56627008334359, "realizedPct": 7.56627008334359}, {"date": "2025-10-08", "usStock": 67085.83, "gold": 3000, "cash": 482.15, "portfolio": 70567.98, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 8.324841990409665, "realizedPct": 8.324841990409665}, {"date": "2025-10-09", "usStock": 67262.62, "gold": 3000, "cash": 482.15, "portfolio": 70744.76999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 8.596222137828988, "realizedPct": 8.596222137828988}, {"date": "2025-10-10", "usStock": 65079.23, "gold": 3000, "cash": 482.15, "portfolio": 68561.38, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 5.244625893279562, "realizedPct": 5.244625893279562}, {"date": "2025-10-11", "usStock": 65079.23, "gold": 3000, "cash": 482.15, "portfolio": 68561.38, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 5.244625893279562, "realizedPct": 5.244625893279562}, {"date": "2025-10-12", "usStock": 65079.23, "gold": 3000, "cash": 482.15, "portfolio": 68561.38, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 5.244625893279562, "realizedPct": 5.244625893279562}, {"date": "2025-10-13", "usStock": 66432.27, "gold": 3000, "cash": 482.15, "portfolio": 69914.42, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 7.3215996738341875, "realizedPct": 7.3215996738341875}, {"date": "2025-10-14", "usStock": 65552.81, "gold": 3000, "cash": 482.15, "portfolio": 69034.95999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 5.971591277152203, "realizedPct": 5.971591277152203}, {"date": "2025-10-15", "usStock": 65902.03, "gold": 3000, "cash": 482.15, "portfolio": 69384.18, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 6.5076587870893015, "realizedPct": 6.5076587870893015}, {"date": "2025-10-16", "usStock": 65239.18, "gold": 3000, "cash": 482.15, "portfolio": 68721.32999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 5.490155926537764, "realizedPct": 5.490155926537764}, {"date": "2025-10-17", "usStock": 66632.79, "gold": 3000, "cash": 482.15, "portfolio": 70114.93999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 7.629406377609977, "realizedPct": 7.629406377609977}, {"date": "2025-10-18", "usStock": 66632.79, "gold": 3000, "cash": 482.15, "portfolio": 70114.93999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 7.629406377609977, "realizedPct": 7.629406377609977}, {"date": "2025-10-19", "usStock": 66632.79, "gold": 3000, "cash": 482.15, "portfolio": 70114.93999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 7.629406377609977, "realizedPct": 7.629406377609977}, {"date": "2025-10-20", "usStock": 68036.27, "gold": 3000, "cash": 482.15, "portfolio": 71518.42, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 9.78380769725525, "realizedPct": 9.78380769725525}, {"date": "2025-10-21", "usStock": 67570.72, "gold": 3000, "cash": 482.15, "portfolio": 71052.87, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 9.06916870392378, "realizedPct": 9.06916870392378}, {"date": "2025-10-22", "usStock": 67597.66, "gold": 3000, "cash": 482.15, "portfolio": 71079.81, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 9.110522746411913, "realizedPct": 9.110522746411913}, {"date": "2025-10-23", "usStock": 68379.67, "gold": 3000, "cash": 482.15, "portfolio": 71861.81999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 10.31094126037419, "realizedPct": 10.31094126037419}, {"date": "2025-10-24", "usStock": 68405.24, "gold": 3000, "cash": 482.15, "portfolio": 71887.39, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 10.350192294762529, "realizedPct": 10.350192294762529}, {"date": "2025-10-25", "usStock": 68405.24, "gold": 3000, "cash": 482.15, "portfolio": 71887.39, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 10.350192294762529, "realizedPct": 10.350192294762529}, {"date": "2025-10-26", "usStock": 68405.24, "gold": 3000, "cash": 482.15, "portfolio": 71887.39, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 10.350192294762529, "realizedPct": 10.350192294762529}, {"date": "2025-10-27", "usStock": 69710.82, "gold": 3000, "cash": 482.15, "portfolio": 73192.97, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 12.354312962604222, "realizedPct": 12.354312962604222}, {"date": "2025-10-28", "usStock": 70490.15, "gold": 3000, "cash": 482.15, "portfolio": 73972.29999999999, "privateCapital": 65144.78, "krungsriCapital": 0, "costOfCapital": 65144.78, "withdrawal": 0, "unrealizedPct": 13.550617562911393, "realizedPct": 13.550617562911393}, {"date": "2025-10-29", "usStock": 78441.56, "gold": 10000, "cash": 482.15, "portfolio": 88923.70999999999, "privateCapital": 80144.78, "krungsriCapital": 0, "costOfCapital": 80144.78, "withdrawal": 0, "unrealizedPct": 10.953838790249337, "realizedPct": 10.953838790249337}, {"date": "2025-10-30", "usStock": 77994.76, "gold": 13000.37, "cash": 482.15, "portfolio": 91477.27999999998, "privateCapital": 80144.78, "krungsriCapital": 0, "costOfCapital": 80144.78, "withdrawal": 0, "unrealizedPct": 14.140035071529281, "realizedPct": 14.140035071529281}, {"date": "2025-10-31", "usStock": 78939.84, "gold": 13000.37, "cash": 482.15, "portfolio": 92422.35999999999, "privateCapital": 80144.78, "krungsriCapital": 0, "costOfCapital": 80144.78, "withdrawal": 0, "unrealizedPct": 15.319250985528923, "realizedPct": 15.319250985528923}, {"date": "2025-11-01", "usStock": 78939.84, "gold": 13000.37, "cash": 482.15, "portfolio": 92422.35999999999, "privateCapital": 80144.78, "krungsriCapital": 0, "costOfCapital": 80144.78, "withdrawal": 0, "unrealizedPct": 15.319250985528923, "realizedPct": 15.319250985528923}, {"date": "2025-11-02", "usStock": 78939.84, "gold": 13000.37, "cash": 482.15, "portfolio": 92422.35999999999, "privateCapital": 80144.78, "krungsriCapital": 0, "costOfCapital": 80144.78, "withdrawal": 0, "unrealizedPct": 15.319250985528923, "realizedPct": 15.319250985528923}, {"date": "2025-11-03", "usStock": 109331.1, "gold": 13000.37, "cash": 482.15, "portfolio": 122813.62, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.501988564505732, "realizedPct": 11.501988564505732}, {"date": "2025-11-04", "usStock": 107653.14, "gold": 13000.37, "cash": 482.15, "portfolio": 121135.65999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.978575471302399, "realizedPct": 9.978575471302399}, {"date": "2025-11-05", "usStock": 109149.69, "gold": 13000.37, "cash": 482.15, "portfolio": 122632.20999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.337287159682004, "realizedPct": 11.337287159682004}, {"date": "2025-11-06", "usStock": 107730.65, "gold": 13000.37, "cash": 482.15, "portfolio": 121213.16999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 10.048946486615149, "realizedPct": 10.048946486615149}, {"date": "2025-11-07", "usStock": 106923.98, "gold": 13000.37, "cash": 482.15, "portfolio": 120406.49999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.316574058253133, "realizedPct": 9.316574058253133}, {"date": "2025-11-08", "usStock": 106923.98, "gold": 13000.37, "cash": 482.15, "portfolio": 120406.49999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.316574058253133, "realizedPct": 9.316574058253133}, {"date": "2025-11-09", "usStock": 106923.98, "gold": 13000.37, "cash": 482.15, "portfolio": 120406.49999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.316574058253133, "realizedPct": 9.316574058253133}, {"date": "2025-11-10", "usStock": 108890.52, "gold": 13000.37, "cash": 482.15, "portfolio": 122373.04, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.101987765557292, "realizedPct": 11.101987765557292}, {"date": "2025-11-11", "usStock": 109299.66, "gold": 13000.37, "cash": 482.15, "portfolio": 122782.18, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.473444315745144, "realizedPct": 11.473444315745144}, {"date": "2025-11-12", "usStock": 109247.71, "gold": 13000.37, "cash": 482.15, "portfolio": 122730.23, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.426279120989662, "realizedPct": 11.426279120989662}, {"date": "2025-11-13", "usStock": 106392.51, "gold": 13000.37, "cash": 482.15, "portfolio": 119875.02999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 8.834054596141538, "realizedPct": 8.834054596141538}, {"date": "2025-11-14", "usStock": 106821.87, "gold": 13000.37, "cash": 482.15, "portfolio": 120304.38999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.223868802497936, "realizedPct": 9.223868802497936}, {"date": "2025-11-15", "usStock": 106821.87, "gold": 13000.37, "cash": 482.15, "portfolio": 120304.38999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.223868802497936, "realizedPct": 9.223868802497936}, {"date": "2025-11-16", "usStock": 106821.87, "gold": 13000.37, "cash": 482.15, "portfolio": 120304.38999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.223868802497936, "realizedPct": 9.223868802497936}, {"date": "2025-11-17", "usStock": 106021.15, "gold": 13000.37, "cash": 482.15, "portfolio": 119503.66999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 8.496898355055942, "realizedPct": 8.496898355055942}, {"date": "2025-11-18", "usStock": 105571.11, "gold": 13000.37, "cash": 482.15, "portfolio": 119053.62999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 8.08830886039265, "realizedPct": 8.08830886039265}, {"date": "2025-11-19", "usStock": 106079.66, "gold": 13000.37, "cash": 482.15, "portfolio": 119562.18, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 8.550019347262753, "realizedPct": 8.550019347262753}, {"date": "2025-11-20", "usStock": 104143.72, "gold": 13000.37, "cash": 482.15, "portfolio": 117626.23999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 6.792387256118712, "realizedPct": 6.792387256118712}, {"date": "2025-11-21", "usStock": 104888.57, "gold": 13000.37, "cash": 482.15, "portfolio": 118371.09, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 7.468633556669683, "realizedPct": 7.468633556669683}, {"date": "2025-11-22", "usStock": 104888.57, "gold": 13000.37, "cash": 482.15, "portfolio": 118371.09, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 7.468633556669683, "realizedPct": 7.468633556669683}, {"date": "2025-11-23", "usStock": 104888.57, "gold": 13000.37, "cash": 482.15, "portfolio": 118371.09, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 7.468633556669683, "realizedPct": 7.468633556669683}, {"date": "2025-11-24", "usStock": 107807.22, "gold": 13000.37, "cash": 482.15, "portfolio": 121289.73999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 10.11846407973214, "realizedPct": 10.11846407973214}, {"date": "2025-11-25", "usStock": 108914.77, "gold": 13000.37, "cash": 482.15, "portfolio": 122397.29, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.124004242416204, "realizedPct": 11.124004242416204}, {"date": "2025-11-26", "usStock": 109030.67, "gold": 13000.37, "cash": 482.15, "portfolio": 122513.18999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.229229383362506, "realizedPct": 11.229229383362506}, {"date": "2025-11-27", "usStock": 109030.67, "gold": 13000.37, "cash": 482.15, "portfolio": 122513.18999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.229229383362506, "realizedPct": 11.229229383362506}, {"date": "2025-11-28", "usStock": 108808.11, "gold": 13000.37, "cash": 482.15, "portfolio": 122290.62999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.027168060075104, "realizedPct": 11.027168060075104}, {"date": "2025-11-29", "usStock": 108808.11, "gold": 13000.37, "cash": 482.15, "portfolio": 122290.62999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.027168060075104, "realizedPct": 11.027168060075104}, {"date": "2025-11-30", "usStock": 108808.11, "gold": 13000.37, "cash": 482.15, "portfolio": 122290.62999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.027168060075104, "realizedPct": 11.027168060075104}, {"date": "2025-12-01", "usStock": 107734.02, "gold": 13000.37, "cash": 482.15, "portfolio": 121216.54, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 10.052006095976582, "realizedPct": 10.052006095976582}, {"date": "2025-12-02", "usStock": 107682.53, "gold": 13000.37, "cash": 482.15, "portfolio": 121165.04999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 10.005258533359447, "realizedPct": 10.005258533359447}, {"date": "2025-12-03", "usStock": 107642.16, "gold": 13000.37, "cash": 482.15, "portfolio": 121124.68, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.968606773739069, "realizedPct": 9.968606773739069}, {"date": "2025-12-04", "usStock": 108801.21, "gold": 13000.37, "cash": 482.15, "portfolio": 122283.73, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 11.020903577999789, "realizedPct": 11.020903577999789}, {"date": "2025-12-05", "usStock": 108448.46, "gold": 13000.37, "cash": 482.15, "portfolio": 121930.98, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 10.700643280598497, "realizedPct": 10.700643280598497}, {"date": "2025-12-06", "usStock": 108448.46, "gold": 13000.37, "cash": 482.15, "portfolio": 121930.98, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 10.700643280598497, "realizedPct": 10.700643280598497}, {"date": "2025-12-07", "usStock": 108448.46, "gold": 13000.37, "cash": 482.15, "portfolio": 121930.98, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 10.700643280598497, "realizedPct": 10.700643280598497}, {"date": "2025-12-08", "usStock": 107467.06, "gold": 13000.37, "cash": 482.15, "portfolio": 120949.57999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.80963419237842, "realizedPct": 9.80963419237842}, {"date": "2025-12-09", "usStock": 107194.35, "gold": 13000.37, "cash": 482.15, "portfolio": 120676.87, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.56204188705084, "realizedPct": 9.56204188705084}, {"date": "2025-12-10", "usStock": 107347.12, "gold": 13000.37, "cash": 482.15, "portfolio": 120829.63999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.700741151782214, "realizedPct": 9.700741151782214}, {"date": "2025-12-11", "usStock": 107361.29, "gold": 13000.37, "cash": 482.15, "portfolio": 120843.80999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.713606037435442, "realizedPct": 9.713606037435442}, {"date": "2025-12-12", "usStock": 107361.29, "gold": 13000.37, "cash": 482.15, "portfolio": 120843.80999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.713606037435442, "realizedPct": 9.713606037435442}, {"date": "2025-12-13", "usStock": 107361.29, "gold": 13000.37, "cash": 482.15, "portfolio": 120843.80999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.713606037435442, "realizedPct": 9.713606037435442}, {"date": "2025-12-14", "usStock": 107361.29, "gold": 13000.37, "cash": 482.15, "portfolio": 120843.80999999998, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.713606037435442, "realizedPct": 9.713606037435442}, {"date": "2025-12-15", "usStock": 107184.97, "gold": 13000.37, "cash": 482.15, "portfolio": 120667.48999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 9.553525823012214, "realizedPct": 9.553525823012214}, {"date": "2025-12-16", "usStock": 108217.96, "gold": 13000.37, "cash": 482.15, "portfolio": 121700.48, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 10.49137326344471, "realizedPct": 10.49137326344471}, {"date": "2025-12-17", "usStock": 105526.67, "gold": 13000.37, "cash": 482.15, "portfolio": 119009.18999999999, "privateCapital": 90144.78, "krungsriCapital": 20000, "costOfCapital": 110144.78, "withdrawal": 0, "unrealizedPct": 8.047961964243779, "realizedPct": 8.047961964243779}, {"date": "2025-12-18", "usStock": 157067.76, "gold": 13000.37, "cash": 50482.15, "portfolio": 220550.28, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 4.951586234975715, "realizedPct": 4.951586234975715}, {"date": "2025-12-19", "usStock": 159075.05, "gold": 13000.37, "cash": 50482.15, "portfolio": 222557.56999999998, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 5.906780078001452, "realizedPct": 5.906780078001452}, {"date": "2025-12-20", "usStock": 159075.05, "gold": 13000.37, "cash": 50482.15, "portfolio": 222557.56999999998, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 5.906780078001452, "realizedPct": 5.906780078001452}, {"date": "2025-12-21", "usStock": 159075.05, "gold": 13000.37, "cash": 50482.15, "portfolio": 222557.56999999998, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 5.906780078001452, "realizedPct": 5.906780078001452}, {"date": "2025-12-22", "usStock": 159075.05, "gold": 13000.37, "cash": 50482.15, "portfolio": 222557.56999999998, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 5.906780078001452, "realizedPct": 5.906780078001452}, {"date": "2025-12-23", "usStock": 160783.32, "gold": 13000.37, "cash": 50482.15, "portfolio": 224265.84, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 6.719681545266076, "realizedPct": 6.719681545266076}, {"date": "2025-12-24", "usStock": 162324.68, "gold": 13000.37, "cash": 50482.15, "portfolio": 225807.19999999998, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 7.4531568188369866, "realizedPct": 7.4531568188369866}, {"date": "2025-12-25", "usStock": 162324.68, "gold": 13000.37, "cash": 50482.15, "portfolio": 225807.19999999998, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 7.4531568188369866, "realizedPct": 7.4531568188369866}, {"date": "2025-12-26", "usStock": 161226.88, "gold": 13000.37, "cash": 50482.15, "portfolio": 224709.4, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 6.930755072764594, "realizedPct": 6.930755072764594}, {"date": "2025-12-27", "usStock": 161226.88, "gold": 13000.37, "cash": 50482.15, "portfolio": 224709.4, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 6.930755072764594, "realizedPct": 6.930755072764594}, {"date": "2025-12-28", "usStock": 161226.88, "gold": 13000.37, "cash": 50482.15, "portfolio": 224709.4, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 6.930755072764594, "realizedPct": 6.930755072764594}, {"date": "2025-12-29", "usStock": 160381.11, "gold": 13000.37, "cash": 50482.15, "portfolio": 223863.62999999998, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 6.528284928133821, "realizedPct": 6.528284928133821}, {"date": "2025-12-30", "usStock": 161828.24, "gold": 13000.37, "cash": 50482.15, "portfolio": 225310.75999999998, "privateCapital": 90144.78, "krungsriCapital": 120000, "costOfCapital": 210144.78, "withdrawal": 0, "unrealizedPct": 7.216919687464986, "realizedPct": 7.216919687464986}, {"date": "2025-12-31", "usStock": 160774.56, "gold": 13000.37, "cash": 50482.15, "portfolio": 224257.08, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 6.703001797311904, "realizedPct": 6.703001797311904}, {"date": "2026-01-01", "usStock": 160774.56, "gold": 13000.37, "cash": 50482.15, "portfolio": 224257.08, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 6.703001797311904, "realizedPct": 6.703001797311904}, {"date": "2026-01-02", "usStock": 160774.56, "gold": 13000.37, "cash": 50482.15, "portfolio": 224257.08, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 6.703001797311904, "realizedPct": 6.703001797311904}, {"date": "2026-01-03", "usStock": 185774.56, "gold": 13000.37, "cash": 25482.15, "portfolio": 224257.08, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 6.703001797311904, "realizedPct": 6.703001797311904}, {"date": "2026-01-04", "usStock": 185774.56, "gold": 13000.37, "cash": 25482.15, "portfolio": 224257.08, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 6.703001797311904, "realizedPct": 6.703001797311904}, {"date": "2026-01-05", "usStock": 200506.9, "gold": 13000.37, "cash": 10482.15, "portfolio": 223989.41999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 6.575647399131615, "realizedPct": 6.575647399131615}, {"date": "2026-01-06", "usStock": 197905.47, "gold": 13000.37, "cash": 10482.15, "portfolio": 221387.99, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 5.337869800468597, "realizedPct": 5.337869800468597}, {"date": "2026-01-07", "usStock": 198736.84, "gold": 13000.37, "cash": 10482.15, "portfolio": 222219.36, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 5.733441144767875, "realizedPct": 5.733441144767875}, {"date": "2026-01-08", "usStock": 198136.94, "gold": 13000.37, "cash": 10482.15, "portfolio": 221619.46, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 5.448004757304849, "realizedPct": 5.448004757304849}, {"date": "2026-01-09", "usStock": 198554.68, "gold": 13000.37, "cash": 10482.15, "portfolio": 222037.19999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 5.646768212045311, "realizedPct": 5.646768212045311}, {"date": "2026-01-10", "usStock": 198554.68, "gold": 13000.37, "cash": 10482.15, "portfolio": 222037.19999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 5.646768212045311, "realizedPct": 5.646768212045311}, {"date": "2026-01-11", "usStock": 198554.68, "gold": 13000.37, "cash": 10482.15, "portfolio": 222037.19999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 5.646768212045311, "realizedPct": 5.646768212045311}, {"date": "2026-01-12", "usStock": 207865.1, "gold": 13000.37, "cash": 482.15, "portfolio": 221347.62, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 5.318661487479964, "realizedPct": 5.318661487479964}, {"date": "2026-01-13", "usStock": 207794.32, "gold": 13000.37, "cash": 482.15, "portfolio": 221276.84, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 5.284983895373558, "realizedPct": 5.284983895373558}, {"date": "2026-01-14", "usStock": 206748.23, "gold": 13000.37, "cash": 482.15, "portfolio": 220230.75, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.787247355014833, "realizedPct": 4.787247355014833}, {"date": "2026-01-15", "usStock": 206358.65, "gold": 13000.37, "cash": 482.15, "portfolio": 219841.16999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.6018826145116645, "realizedPct": 4.6018826145116645}, {"date": "2026-01-16", "usStock": 206137.03, "gold": 13000.37, "cash": 482.15, "portfolio": 219619.55, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.496434352818791, "realizedPct": 4.496434352818791}, {"date": "2026-01-17", "usStock": 206137.03, "gold": 13000.37, "cash": 482.15, "portfolio": 219619.55, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.496434352818791, "realizedPct": 4.496434352818791}, {"date": "2026-01-18", "usStock": 206137.03, "gold": 13000.37, "cash": 482.15, "portfolio": 219619.55, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.496434352818791, "realizedPct": 4.496434352818791}, {"date": "2026-01-19", "usStock": 206137.03, "gold": 13000.37, "cash": 482.15, "portfolio": 219619.55, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.496434352818791, "realizedPct": 4.496434352818791}, {"date": "2026-01-20", "usStock": 198245.37, "gold": 13000.37, "cash": 482.15, "portfolio": 211727.88999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 0.7415303330046785, "realizedPct": 0.7415303330046785}, {"date": "2026-01-21", "usStock": 201093.65, "gold": 13000.37, "cash": 482.15, "portfolio": 214576.16999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 2.096760794220206, "realizedPct": 2.096760794220206}, {"date": "2026-01-22", "usStock": 206741.65, "gold": 13000.37, "cash": 482.15, "portfolio": 220224.16999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.784116547497728, "realizedPct": 4.784116547497728}, {"date": "2026-01-23", "usStock": 206046.3, "gold": 13000.37, "cash": 482.15, "portfolio": 219528.81999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.453264418772243, "realizedPct": 4.453264418772243}, {"date": "2026-01-24", "usStock": 206046.3, "gold": 13000.37, "cash": 482.15, "portfolio": 219528.81999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.453264418772243, "realizedPct": 4.453264418772243}, {"date": "2026-01-25", "usStock": 206046.3, "gold": 13000.37, "cash": 482.15, "portfolio": 219528.81999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.453264418772243, "realizedPct": 4.453264418772243}, {"date": "2026-01-26", "usStock": 204278.08, "gold": 13000.37, "cash": 482.15, "portfolio": 217760.59999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 3.611933648577416, "realizedPct": 3.611933648577416}, {"date": "2026-01-27", "usStock": 204871.83, "gold": 13000.37, "cash": 482.15, "portfolio": 218354.34999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 3.89444382536717, "realizedPct": 3.89444382536717}, {"date": "2026-01-28", "usStock": 204871.83, "gold": 13000.37, "cash": 482.15, "portfolio": 218354.34999999998, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 3.89444382536717, "realizedPct": 3.89444382536717}, {"date": "2026-01-29", "usStock": 206034.72, "gold": 13637.2, "cash": 482.58, "portfolio": 220154.5, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.75096710073236, "realizedPct": 4.75096710073236}, {"date": "2026-01-30", "usStock": 206120.13, "gold": 13637.2, "cash": 482.58, "portfolio": 220239.91, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.791605743594868, "realizedPct": 4.791605743594868}, {"date": "2026-01-31", "usStock": 206120.13, "gold": 13637.2, "cash": 482.58, "portfolio": 220239.91, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.791605743594868, "realizedPct": 4.791605743594868}, {"date": "2026-02-01", "usStock": 206120.13, "gold": 13637.2, "cash": 482.58, "portfolio": 220239.91, "privateCapital": 90169.42, "krungsriCapital": 120000, "costOfCapital": 210169.41999999998, "withdrawal": 0, "unrealizedPct": 4.791605743594868, "realizedPct": 4.791605743594868}, {"date": "2026-02-02", "usStock": 256133.26, "gold": 13637.2, "cash": 50482.58, "portfolio": 320253.04000000004, "privateCapital": 90169.42, "krungsriCapital": 220000, "costOfCapital": 310169.42, "withdrawal": 0, "unrealizedPct": 3.2510039190839812, "realizedPct": 3.2510039190839812}, {"date": "2026-02-03", "usStock": 281222.38, "gold": 13637.2, "cash": 20482.58, "portfolio": 315342.16000000003, "privateCapital": 90169.42, "krungsriCapital": 220000, "costOfCapital": 310169.42, "withdrawal": 0, "unrealizedPct": 1.6677143736478113, "realizedPct": 1.6677143736478113}, {"date": "2026-02-04", "usStock": 278609.12, "gold": 13637.2, "cash": 20482.58, "portfolio": 312728.9, "privateCapital": 90169.42, "krungsriCapital": 220000, "costOfCapital": 310169.42, "withdrawal": 0, "unrealizedPct": 0.8251877312728121, "realizedPct": 0.8251877312728121}, {"date": "2026-02-05", "usStock": 273301.28, "gold": 13637.2, "cash": 20482.58, "portfolio": 307421.06000000006, "privateCapital": 90169.42, "krungsriCapital": 220000, "costOfCapital": 310169.42, "withdrawal": 0, "unrealizedPct": -0.886083483020321, "realizedPct": -0.886083483020321}, {"date": "2026-02-06", "usStock": 385438.22, "gold": 12317.67, "cash": 628.75, "portfolio": 398384.63999999996, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 2.1055519932853715, "realizedPct": 2.1055519932853715}, {"date": "2026-02-07", "usStock": 385438.22, "gold": 12317.67, "cash": 414.44, "portfolio": 398170.32999999996, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 2.0506245722691374, "realizedPct": 2.0506245722691374}, {"date": "2026-02-08", "usStock": 385438.22, "gold": 12317.67, "cash": 414.44, "portfolio": 398170.32999999996, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 2.0506245722691374, "realizedPct": 2.0506245722691374}, {"date": "2026-02-09", "usStock": 389437.72, "gold": 12317.67, "cash": 414.44, "portfolio": 402169.82999999996, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 3.0756920929374667, "realizedPct": 3.0756920929374667}, {"date": "2026-02-10", "usStock": 387264.56, "gold": 12463.82, "cash": 434.96, "portfolio": 400163.34, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 2.5614308778991552, "realizedPct": 2.5614308778991552}, {"date": "2026-02-11", "usStock": 386714.73, "gold": 12420.87, "cash": 434.79, "portfolio": 399570.38999999996, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 2.409458434748672, "realizedPct": 2.409458434748672}, {"date": "2026-02-12", "usStock": 379176.08, "gold": 12377.92, "cash": 434.62, "portfolio": 391988.62, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 0.46625899077380584, "realizedPct": 0.46625899077380584}, {"date": "2026-02-13", "usStock": 375662.71, "gold": 12334.97, "cash": 434.45, "portfolio": 388432.13, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": -0.4452655464387699, "realizedPct": -0.4452655464387699}, {"date": "2026-02-14", "usStock": 375662.71, "gold": 12292.02, "cash": 434.28, "portfolio": 388389.01000000007, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": -0.4563171557627238, "realizedPct": -0.4563171557627238}, {"date": "2026-02-15", "usStock": 375662.71, "gold": 12249.07, "cash": 434.11, "portfolio": 388345.89, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": -0.46736876508670766, "realizedPct": -0.46736876508670766}, {"date": "2026-02-16", "usStock": 375662.71, "gold": 12206.12, "cash": 433.94, "portfolio": 388302.77, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": -0.4784203744106766, "realizedPct": -0.4784203744106766}, {"date": "2026-02-17", "usStock": 377589.83, "gold": 12163.17, "cash": 433.77, "portfolio": 390186.77, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 0.004446786219185226, "realizedPct": 0.004446786219185226}, {"date": "2026-02-18", "usStock": 381067.28, "gold": 12120.22, "cash": 433.6, "portfolio": 393621.1, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 0.8846618476660711, "realizedPct": 0.8846618476660711}, {"date": "2026-02-19", "usStock": 379894.85, "gold": 12077.27, "cash": 433.43, "portfolio": 392405.55, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 0.5731176984603265, "realizedPct": 0.5731176984603265}, {"date": "2026-02-20", "usStock": 380975.22, "gold": 12034.32, "cash": 433.26, "portfolio": 393442.8, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 0.8389637506701588, "realizedPct": 0.8389637506701588}, {"date": "2026-02-21", "usStock": 380975.22, "gold": 11991.37, "cash": 433.09, "portfolio": 393399.68, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 0.8279121413461898, "realizedPct": 0.8279121413461898}, {"date": "2026-02-22", "usStock": 380975.22, "gold": 11948.42, "cash": 432.92, "portfolio": 393356.55999999994, "privateCapital": 90169.42, "krungsriCapital": 300000, "costOfCapital": 390169.42, "withdrawal": 0, "unrealizedPct": 0.8168605320222061, "realizedPct": 0.8168605320222061}, {"date": "2026-02-23", "usStock": 398674.18, "gold": 12739.45, "cash": 461.2, "portfolio": 411874.83, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": 0.41578184936361967, "realizedPct": 0.41578184936361967}, {"date": "2026-02-24", "usStock": 401933.96, "gold": 12751.2, "cash": 461.05, "portfolio": 415146.21, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": 1.2133498396833282, "realizedPct": 1.2133498396833282}, {"date": "2026-02-25", "usStock": 407007.81, "gold": 12762.95, "cash": 460.9, "portfolio": 420231.66000000003, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": 2.453191171589547, "realizedPct": 2.453191171589547}, {"date": "2026-02-26", "usStock": 396288.35, "gold": 12774.7, "cash": 460.75, "portfolio": 409523.8, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -0.1574032505884996, "realizedPct": -0.1574032505884996}, {"date": "2026-02-27", "usStock": 386626.78, "gold": 12786.45, "cash": 460.6, "portfolio": 399873.83, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -2.51008229721269, "realizedPct": -2.51008229721269}, {"date": "2026-02-28", "usStock": 386626.78, "gold": 12798.2, "cash": 460.45, "portfolio": 399885.43000000005, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -2.5072541975459637, "realizedPct": -2.5072541975459637}, {"date": "2026-03-01", "usStock": 386626.78, "gold": 12809.95, "cash": 460.3, "portfolio": 399897.03, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -2.504426097879251, "realizedPct": -2.504426097879251}, {"date": "2026-03-02", "usStock": 391017.64, "gold": 12821.7, "cash": 460.15, "portfolio": 404299.49000000005, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -1.431098885918881, "realizedPct": -1.431098885918881}, {"date": "2026-03-03", "usStock": 385052.93, "gold": 12833.45, "cash": 460, "portfolio": 398346.38, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -2.882477196861721, "realizedPct": -2.882477196861721}, {"date": "2026-03-04", "usStock": 397517.52, "gold": 12845.2, "cash": 459.85, "portfolio": 410822.57, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": 0.15923907735491916, "realizedPct": 0.15923907735491916}, {"date": "2026-03-05", "usStock": 395473.52, "gold": 12856.95, "cash": 459.7, "portfolio": 408790.17000000004, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -0.33626348838973463, "realizedPct": -0.33626348838973463}, {"date": "2026-03-06", "usStock": 389866.54, "gold": 12868.7, "cash": 459.55, "portfolio": 403194.79, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -1.7004266188347255, "realizedPct": -1.7004266188347255}, {"date": "2026-03-07", "usStock": 389866.54, "gold": 12880.45, "cash": 459.4, "portfolio": 403206.39, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -1.697598519167999, "realizedPct": -1.697598519167999}, {"date": "2026-03-08", "usStock": 389866.54, "gold": 12892.2, "cash": 459.25, "portfolio": 403217.99, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -1.6947704195012865, "realizedPct": -1.6947704195012865}, {"date": "2026-03-09", "usStock": 399663.94, "gold": 12903.95, "cash": 459.1, "portfolio": 413026.99, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": 0.6966804107434453, "realizedPct": 0.6966804107434453}, {"date": "2026-03-10", "usStock": 397527.04, "gold": 13047.04, "cash": 457.14, "portfolio": 411031.22, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": 0.21010830110152734, "realizedPct": 0.21010830110152734}, {"date": "2026-03-11", "usStock": 398876.58, "gold": 13047.04, "cash": 457.14, "portfolio": 412380.76, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": 0.539128441120751, "realizedPct": 0.539128441120751}, {"date": "2026-03-12", "usStock": 400334.15, "gold": 13023.5, "cash": 473.15, "portfolio": 413830.80000000005, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": 0.8926506515283521, "realizedPct": 0.8926506515283521}, {"date": "2026-03-13", "usStock": 393061.96, "gold": 13023.5, "cash": 473.15, "portfolio": 406558.61000000004, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -0.8803215997916031, "realizedPct": -0.8803215997916031}, {"date": "2026-03-14", "usStock": 393061.96, "gold": 13023.5, "cash": 473.15, "portfolio": 406558.61000000004, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -0.8803215997916031, "realizedPct": -0.8803215997916031}, {"date": "2026-03-15", "usStock": 393061.96, "gold": 13023.5, "cash": 473.15, "portfolio": 406558.61000000004, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -0.8803215997916031, "realizedPct": -0.8803215997916031}, {"date": "2026-03-16", "usStock": 401091.03, "gold": 13023.5, "cash": 473.15, "portfolio": 414587.68000000005, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": 1.077179278747808, "realizedPct": 1.077179278747808}, {"date": "2026-03-17", "usStock": 398545.21, "gold": 13023.5, "cash": 473.15, "portfolio": 412041.86000000004, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": 0.45650404654741467, "realizedPct": 0.45650404654741467}, {"date": "2026-03-18", "usStock": 392068.08, "gold": 13023.5, "cash": 473.15, "portfolio": 405564.73000000004, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -1.122631228822457, "realizedPct": -1.122631228822457}, {"date": "2026-03-19", "usStock": 391424.2, "gold": 13023.5, "cash": 473.15, "portfolio": 404920.85000000003, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -1.279610264460951, "realizedPct": -1.279610264460951}, {"date": "2026-03-20", "usStock": 379201.63, "gold": 13023.5, "cash": 473.15, "portfolio": 392698.28, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -4.259493552688535, "realizedPct": -4.259493552688535}, {"date": "2026-03-21", "usStock": 379201.63, "gold": 13023.5, "cash": 473.15, "portfolio": 392698.28, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -4.259493552688535, "realizedPct": -4.259493552688535}, {"date": "2026-03-22", "usStock": 379201.63, "gold": 13023.5, "cash": 473.15, "portfolio": 392698.28, "privateCapital": 90169.42, "krungsriCapital": 320000, "costOfCapital": 410169.42, "withdrawal": 0, "unrealizedPct": -4.259493552688535, "realizedPct": -4.259493552688535}, {"date": "2026-03-23", "usStock": 462430.4, "gold": 11223.85, "cash": 30474.5, "portfolio": 504128.75, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": -1.1840517606876524, "realizedPct": -1.1840517606876524}, {"date": "2026-03-24", "usStock": 456248.94, "gold": 11776.47, "cash": 30474.5, "portfolio": 498499.91, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": -2.2873793572339185, "realizedPct": -2.2873793572339185}, {"date": "2026-03-25", "usStock": 463028.16, "gold": 11776.47, "cash": 30474.5, "portfolio": 505279.12999999995, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": -0.9585619616322822, "realizedPct": -0.9585619616322822}, {"date": "2026-03-26", "usStock": 450013.06, "gold": 11776.47, "cash": 30474.5, "portfolio": 492264.02999999997, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": -3.5096948774389527, "realizedPct": -3.5096948774389527}, {"date": "2026-03-27", "usStock": 470989.96, "gold": 11776.47, "cash": 30474.5, "portfolio": 513240.93, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 0.6020568618166117, "realizedPct": 0.6020568618166117}, {"date": "2026-03-28", "usStock": 470989.96, "gold": 11776.47, "cash": 30474.5, "portfolio": 513240.93, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 0.6020568618166117, "realizedPct": 0.6020568618166117}, {"date": "2026-03-29", "usStock": 470989.96, "gold": 11776.47, "cash": 30474.5, "portfolio": 513240.93, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 0.6020568618166117, "realizedPct": 0.6020568618166117}, {"date": "2026-03-30", "usStock": 465558.6, "gold": 11776.47, "cash": 30474.5, "portfolio": 507809.56999999995, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": -0.46256202498378574, "realizedPct": -0.46256202498378574}, {"date": "2026-03-31", "usStock": 486671.61, "gold": 11776.47, "cash": 30474.5, "portfolio": 528922.58, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 3.67586908678297, "realizedPct": 3.67586908678297}, {"date": "2026-04-01", "usStock": 491994.33, "gold": 11776.47, "cash": 30474.5, "portfolio": 534245.3, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 4.719193086876917, "realizedPct": 4.719193086876917}, {"date": "2026-04-02", "usStock": 482862.89, "gold": 11776.47, "cash": 30474.5, "portfolio": 525113.86, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 2.929309247896513, "realizedPct": 2.929309247896513}, {"date": "2026-04-03", "usStock": 482862.89, "gold": 11776.47, "cash": 30474.5, "portfolio": 525113.86, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 2.929309247896513, "realizedPct": 2.929309247896513}, {"date": "2026-04-04", "usStock": 482862.89, "gold": 11776.47, "cash": 30474.5, "portfolio": 525113.86, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 2.929309247896513, "realizedPct": 2.929309247896513}, {"date": "2026-04-05", "usStock": 482862.89, "gold": 11776.47, "cash": 30474.5, "portfolio": 525113.86, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 2.929309247896513, "realizedPct": 2.929309247896513}, {"date": "2026-04-06", "usStock": 479254.15, "gold": 11776.47, "cash": 30474.5, "portfolio": 521505.12, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 2.221948152047218, "realizedPct": 2.221948152047218}, {"date": "2026-04-07", "usStock": 475865.64, "gold": 11776.47, "cash": 30474.5, "portfolio": 518116.61, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 1.557755068894565, "realizedPct": 1.557755068894565}, {"date": "2026-04-08", "usStock": 477839.65, "gold": 11776.47, "cash": 30474.5, "portfolio": 520090.62, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 1.9446873158332405, "realizedPct": 1.9446873158332405}, {"date": "2026-04-09", "usStock": 477430.15, "gold": 11776.47, "cash": 30474.5, "portfolio": 519681.12, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 1.8644198627193318, "realizedPct": 1.8644198627193318}, {"date": "2026-04-10", "usStock": 482768.78, "gold": 11776.47, "cash": 30474.5, "portfolio": 525019.75, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 2.9108624346790553, "realizedPct": 2.9108624346790553}, {"date": "2026-04-11", "usStock": 482768.78, "gold": 11776.47, "cash": 30474.5, "portfolio": 525019.75, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 2.9108624346790553, "realizedPct": 2.9108624346790553}, {"date": "2026-04-12", "usStock": 482768.78, "gold": 11776.47, "cash": 30474.5, "portfolio": 525019.75, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 2.9108624346790553, "realizedPct": 2.9108624346790553}, {"date": "2026-04-13", "usStock": 485376.92, "gold": 11776.47, "cash": 30474.5, "portfolio": 527627.8899999999, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 3.42209260602094, "realizedPct": 3.42209260602094}, {"date": "2026-04-14", "usStock": 498403.78, "gold": 11776.47, "cash": 30474.5, "portfolio": 540654.75, "privateCapital": 90169.42, "krungsriCapital": 420000, "costOfCapital": 510169.42, "withdrawal": 0, "unrealizedPct": 5.9755306384298805, "realizedPct": 5.9755306384298805}, {"date": "2026-04-15", "usStock": 512860.47, "gold": 12213.54, "cash": 50262.76, "portfolio": 575336.77, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 2.7076362004909114, "realizedPct": 2.7076362004909114}, {"date": "2026-04-16", "usStock": 509513.7, "gold": 12213.54, "cash": 50262.76, "portfolio": 571990, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 2.110179452494918, "realizedPct": 2.110179452494918}, {"date": "2026-04-17", "usStock": 522607.81, "gold": 12213.54, "cash": 50262.76, "portfolio": 585084.11, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 4.447706195743413, "realizedPct": 4.447706195743413}, {"date": "2026-04-18", "usStock": 522607.81, "gold": 12213.54, "cash": 50262.76, "portfolio": 585084.11, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 4.447706195743413, "realizedPct": 4.447706195743413}, {"date": "2026-04-19", "usStock": 522607.81, "gold": 12213.54, "cash": 50262.76, "portfolio": 585084.11, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 4.447706195743413, "realizedPct": 4.447706195743413}, {"date": "2026-04-20", "usStock": 518767.69, "gold": 12213.54, "cash": 50262.76, "portfolio": 581243.99, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 3.7621778782568933, "realizedPct": 3.7621778782568933}, {"date": "2026-04-21", "usStock": 511819.43, "gold": 12213.54, "cash": 50262.76, "portfolio": 574295.73, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 2.521792424870308, "realizedPct": 2.521792424870308}, {"date": "2026-04-22", "usStock": 520036.64, "gold": 12213.54, "cash": 50262.76, "portfolio": 582512.9400000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 3.988707559223782, "realizedPct": 3.988707559223782}, {"date": "2026-04-23", "usStock": 510314.21, "gold": 12213.54, "cash": 50262.76, "portfolio": 572790.51, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 2.2530844329203057, "realizedPct": 2.2530844329203057}, {"date": "2026-04-24", "usStock": 564517.29, "gold": 12068.2, "cash": 5396.5, "portfolio": 581981.99, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 3.8939237347158198, "realizedPct": 3.8939237347158198}, {"date": "2026-04-25", "usStock": 564517.29, "gold": 12068.2, "cash": 5396.5, "portfolio": 581981.99, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 3.8939237347158198, "realizedPct": 3.8939237347158198}, {"date": "2026-04-26", "usStock": 564517.29, "gold": 12068.2, "cash": 5396.5, "portfolio": 581981.99, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 3.8939237347158198, "realizedPct": 3.8939237347158198}, {"date": "2026-04-27", "usStock": 574436.61, "gold": 12010.89, "cash": 5396.5, "portfolio": 591844, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 5.654464322597252, "realizedPct": 5.654464322597252}, {"date": "2026-04-28", "usStock": 574049.43, "gold": 11844.03, "cash": 5396.5, "portfolio": 591289.9600000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 5.555558530845906, "realizedPct": 5.555558530845906}, {"date": "2026-04-29", "usStock": 563039.72, "gold": 11677.17, "cash": 5396.5, "portfolio": 580113.39, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 3.5603460824405535, "realizedPct": 3.5603460824405535}, {"date": "2026-04-30", "usStock": 570280.4, "gold": 11510.31, "cash": 5396.5, "portfolio": 587187.2100000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 4.823146183167235, "realizedPct": 4.823146183167235}, {"date": "2026-05-01", "usStock": 577889.18, "gold": 11343.45, "cash": 5396.5, "portfolio": 594629.13, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 6.151658546444745, "realizedPct": 6.151658546444745}, {"date": "2026-05-02", "usStock": 577889.18, "gold": 11176.59, "cash": 5396.5, "portfolio": 594462.27, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 6.121871129630742, "realizedPct": 6.121871129630742}, {"date": "2026-05-03", "usStock": 577889.18, "gold": 11009.73, "cash": 5396.5, "portfolio": 594295.41, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 6.092083712816739, "realizedPct": 6.092083712816739}, {"date": "2026-05-04", "usStock": 578848.65, "gold": 10842.87, "cash": 5396.5, "portfolio": 595088.02, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 6.233578405618781, "realizedPct": 6.233578405618781}, {"date": "2026-05-05", "usStock": 589598.3, "gold": 10676.01, "cash": 5396.5, "portfolio": 605670.81, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 8.122790779975103, "realizedPct": 8.122790779975103}, {"date": "2026-05-06", "usStock": 594127.25, "gold": 10509.15, "cash": 5396.5, "portfolio": 610032.9, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 8.901499835531897, "realizedPct": 8.901499835531897}, {"date": "2026-05-07", "usStock": 603169.02, "gold": 10342.29, "cash": 5396.5, "portfolio": 618907.81, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 10.485825877464002, "realizedPct": 10.485825877464002}, {"date": "2026-05-08", "usStock": 603169.02, "gold": 10175.43, "cash": 5396.5, "portfolio": 618740.9500000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 10.456038460649998, "realizedPct": 10.456038460649998}, {"date": "2026-05-09", "usStock": 603169.02, "gold": 10008.57, "cash": 5396.5, "portfolio": 618574.09, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 10.426251043835974, "realizedPct": 10.426251043835974}, {"date": "2026-05-10", "usStock": 603169.02, "gold": 9841.71000000002, "cash": 5396.5, "portfolio": 618407.23, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 10.396463627021971, "realizedPct": 10.396463627021971}, {"date": "2026-05-11", "usStock": 603777.15, "gold": 9674.85000000002, "cash": 5396.5, "portfolio": 618848.5, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 0, "unrealizedPct": 10.475238009243695, "realizedPct": 10.475238009243695}, {"date": "2026-05-12", "usStock": 603139.92, "gold": 9507.99000000002, "cash": 5396.5, "portfolio": 618044.41, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 14375.883419999998, "unrealizedPct": 10.331693936452295, "realizedPct": 12.89803956453031}, {"date": "2026-05-13", "usStock": 617374.53, "gold": 9341.13000000002, "cash": 5396.5, "portfolio": 632112.16, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 14375.88, "unrealizedPct": 12.843032381167824, "realizedPct": 15.409377398716265}, {"date": "2026-05-14", "usStock": 614404.86, "gold": 9174.27000000002, "cash": 5396.5, "portfolio": 628975.63, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 14375.88, "unrealizedPct": 12.283107135694761, "realizedPct": 14.849452153243202}, {"date": "2026-05-15", "usStock": 593225.64, "gold": 11882.03, "cash": 34219.64, "portfolio": 639327.31, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.169919999997, "unrealizedPct": 14.131062348958642, "realizedPct": 19.283640995611652}, {"date": "2026-05-16", "usStock": 593225.64, "gold": 11882.03, "cash": 34219.64, "portfolio": 639327.31, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 14.131062348958642, "realizedPct": 19.283641009893053}, {"date": "2026-05-17", "usStock": 593225.64, "gold": 11882.03, "cash": 34219.64, "portfolio": 639327.31, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 14.131062348958642, "realizedPct": 19.283641009893053}, {"date": "2026-05-18", "usStock": 586953.28, "gold": 11882.03, "cash": 34219.64, "portfolio": 633054.9500000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 13.011336820207006, "realizedPct": 18.163915481141412}, {"date": "2026-05-19", "usStock": 584051.53, "gold": 11882.03, "cash": 34219.64, "portfolio": 630153.2000000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 12.493323894760271, "realizedPct": 17.64590255569468}, {"date": "2026-05-20", "usStock": 595393.54, "gold": 11882.03, "cash": 34219.64, "portfolio": 641495.2100000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 14.518070265242262, "realizedPct": 19.670648926176668}, {"date": "2026-05-21", "usStock": 593073.32, "gold": 11882.03, "cash": 34219.64, "portfolio": 639174.99, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 14.103870575441254, "realizedPct": 19.256449236375666}, {"date": "2026-05-22", "usStock": 596570.05, "gold": 11882.03, "cash": 34219.64, "portfolio": 642671.7200000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 14.728097795841844, "realizedPct": 19.880676456776254}, {"date": "2026-05-23", "usStock": 596570.05, "gold": 11882.03, "cash": 34219.64, "portfolio": 642671.7200000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 14.728097795841844, "realizedPct": 19.880676456776254}, {"date": "2026-05-24", "usStock": 596570.05, "gold": 11882.03, "cash": 34219.64, "portfolio": 642671.7200000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 14.728097795841844, "realizedPct": 19.880676456776254}, {"date": "2026-05-25", "usStock": 596570.05, "gold": 11882.03, "cash": 34219.64, "portfolio": 642671.7200000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 14.728097795841844, "realizedPct": 19.880676456776254}, {"date": "2026-05-26", "usStock": 597745.71, "gold": 11882.03, "cash": 34219.64, "portfolio": 643847.38, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 14.937973586633834, "realizedPct": 20.090552247568244}, {"date": "2026-05-27", "usStock": 602703.07, "gold": 11882.03, "cash": 34219.64, "portfolio": 648804.74, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 15.822948707196465, "realizedPct": 20.975527368130876}, {"date": "2026-05-28", "usStock": 611756.04, "gold": 11882.03, "cash": 34219.64, "portfolio": 657857.7100000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 17.43906156105416, "realizedPct": 22.59164022198857}, {"date": "2026-05-29", "usStock": 602331.31, "gold": 11882.03, "cash": 34219.64, "portfolio": 648432.9800000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 15.756583070885958, "realizedPct": 20.909161731820365}, {"date": "2026-05-30", "usStock": 602331.31, "gold": 11882.03, "cash": 34219.64, "portfolio": 648432.9800000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 15.756583070885958, "realizedPct": 20.909161731820365}, {"date": "2026-05-31", "usStock": 602331.31, "gold": 11882.03, "cash": 34219.64, "portfolio": 648432.9800000001, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 15.756583070885958, "realizedPct": 20.909161731820365}, {"date": "2026-06-01", "usStock": 601891.61, "gold": 11882.03, "cash": 34219.64, "portfolio": 647993.28, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 15.678088961014684, "realizedPct": 20.830667621949093}, {"date": "2026-06-02", "usStock": 602706.64, "gold": 11882.03, "cash": 34219.64, "portfolio": 648808.31, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 15.82358601438829, "realizedPct": 20.9761646753227}, {"date": "2026-06-03", "usStock": 595580.26, "gold": 11882.03, "cash": 34219.64, "portfolio": 641681.93, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 14.55140303803089, "realizedPct": 19.703981698965293}, {"date": "2026-06-04", "usStock": 605904.06, "gold": 11546.39, "cash": 2155.96, "portfolio": 619606.41, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 10.610538147548287, "realizedPct": 15.763116808482696}, {"date": "2026-06-05", "usStock": 579184.03, "gold": 11546.39, "cash": 2155.96, "portfolio": 592886.38, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 5.840547311561556, "realizedPct": 10.993125972495964}, {"date": "2026-06-06", "usStock": 579184.03, "gold": 11546.39, "cash": 2155.96, "portfolio": 592886.38, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 5.840547311561556, "realizedPct": 10.993125972495964}, {"date": "2026-06-07", "usStock": 579184.03, "gold": 11546.39, "cash": 2155.96, "portfolio": 592886.38, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 5.840547311561556, "realizedPct": 10.993125972495964}, {"date": "2026-06-08", "usStock": 595048.41, "gold": 11546.39, "cash": 2155.96, "portfolio": 608750.76, "privateCapital": 90169.42, "krungsriCapital": 470000, "costOfCapital": 560169.42, "withdrawal": 28863.17, "unrealizedPct": 8.6726155097863, "realizedPct": 13.825194170720708}, {"date": "2026-06-09", "usStock": 690239.32, "gold": 10900.35, "cash": 2156.11, "portfolio": 703295.7799999999, "privateCapital": 90169.42, "krungsriCapital": 570000, "costOfCapital": 660169.42, "withdrawal": 28863.17, "unrealizedPct": 6.532620065921845, "realizedPct": 10.904705340638152}, {"date": "2026-06-10", "usStock": 743700.91, "gold": 10591.24, "cash": 77330.86, "portfolio": 831623.01, "privateCapital": 90169.42, "krungsriCapital": 720000, "costOfCapital": 810169.42, "withdrawal": 28863.17, "unrealizedPct": 2.6480374931949378, "realizedPct": 6.210646657090564}, {"date": "2026-06-11", "usStock": 762297.85, "gold": 11177.12, "cash": 77330.86, "portfolio": 850805.83, "privateCapital": 90169.42, "krungsriCapital": 720000, "costOfCapital": 810169.42, "withdrawal": 28863.17, "unrealizedPct": 5.0157916352853595, "realizedPct": 8.578400799180985}, {"date": "2026-06-12", "usStock": 766019.61, "gold": 11177.12, "cash": 67479.45, "portfolio": 844676.1799999999, "privateCapital": 90169.42, "krungsriCapital": 720000, "costOfCapital": 810169.42, "withdrawal": 28863.17, "unrealizedPct": 4.259202970163931, "realizedPct": 7.821812134059557}, {"date": "2026-06-13", "usStock": 766019.61, "gold": 11177.12, "cash": 67479.45, "portfolio": 844676.1799999999, "privateCapital": 90169.42, "krungsriCapital": 720000, "costOfCapital": 810169.42, "withdrawal": 28863.17, "unrealizedPct": 4.259202970163931, "realizedPct": 7.821812134059557}, {"date": "2026-06-14", "usStock": 766019.61, "gold": 11177.12, "cash": 67479.45, "portfolio": 844676.1799999999, "privateCapital": 90169.42, "krungsriCapital": 720000, "costOfCapital": 810169.42, "withdrawal": 28863.17, "unrealizedPct": 4.259202970163931, "realizedPct": 7.821812134059557}, {"date": "2026-06-15", "usStock": 784485.03, "gold": 11181.25, "cash": 67480.21, "portfolio": 863146.49, "privateCapital": 90169.42, "krungsriCapital": 720000, "costOfCapital": 810169.42, "withdrawal": 28863.17, "unrealizedPct": 6.539011309511034, "realizedPct": 10.10162047340666}]</script>
+<script id="seed-holdings" type="application/json">[{"symbol": "NVDA", "cost": 157602.33, "value": 176275.21}, {"symbol": "LLY", "cost": 103283.06, "value": 115520.14}, {"symbol": "AAPL", "cost": 29999.52, "value": 33553.89}, {"symbol": "AXP", "cost": 19999.61, "value": 22369.18}, {"symbol": "TSLA", "cost": 177002.17, "value": 197973.58}, {"symbol": "IONQ", "cost": 7999.7, "value": 8947.51}, {"symbol": "META", "cost": 9999.78, "value": 11184.56}, {"symbol": "MSFT", "cost": 9999.83, "value": 11184.62}, {"symbol": "AVGO", "cost": 149999.34, "value": 167771.42}, {"symbol": "SPCX", "cost": 10499.2, "value": 11743.16}, {"symbol": "GOOGL", "cost": 24999.75, "value": 27961.75}]</script>
+<script>
+(() => {
+  const fmt = (n, dp = 0) => {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    const neg = n < 0;
+    const abs = Math.abs(n);
+    const s = abs.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+    return (neg ? '-$' : '$') + s;
+  };
+  const fmtPct = (n, dp = 2) => {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return (n >= 0 ? '+' : '') + n.toFixed(dp) + '%';
+  };
+  const SYMBOL_COLORS = ['#409CFF','#32D74B','#FF9F0A','#BF7AF0','#FF453A','#64D2FF','#D8B868','#FF6482','#5E5CE6','#30B0C7','#AC8E68'];
+  const colorFor = (i) => SYMBOL_COLORS[i % SYMBOL_COLORS.length];
+
+  const SEED_HISTORY = JSON.parse(document.getElementById('seed-history').textContent);
+  const SEED_HOLDINGS = JSON.parse(document.getElementById('seed-holdings').textContent);
+
+  let entries = []; // {date, usStock, gold, cash, costOfCapital, notes}
+  let holdings = []; // {symbol, cost, value}
+  let chartRange = '90';
+  let portfolioChart, allocChart, sparkChart;
+
+  // ---------- storage helpers ----------
+  async function loadData() {
+    try {
+      const r = await window.storage.get('entries', false);
+      entries = r && r.value ? JSON.parse(r.value) : seedEntriesFromHistory();
+    } catch (e) {
+      entries = seedEntriesFromHistory();
+    }
+    try {
+      const r = await window.storage.get('holdings', false);
+      holdings = r && r.value ? JSON.parse(r.value) : SEED_HOLDINGS.slice();
+    } catch (e) {
+      holdings = SEED_HOLDINGS.slice();
+    }
+    entries.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  function seedEntriesFromHistory() {
+    return SEED_HISTORY.map(h => ({
+      date: h.date,
+      usStock: h.usStock || 0,
+      gold: h.gold || 0,
+      cash: h.cash || 0,
+      costOfCapital: h.costOfCapital || 0,
+      withdrawal: h.withdrawal || 0,
+      notes: ''
+    }));
+  }
+
+  async function saveEntries() {
+    try { await window.storage.set('entries', JSON.stringify(entries), false); }
+    catch (e) { showToast('Could not save — storage unavailable'); }
+  }
+  async function saveHoldings() {
+    try { await window.storage.set('holdings', JSON.stringify(holdings), false); }
+    catch (e) { showToast('Could not save — storage unavailable'); }
+  }
+
+  // ---------- toast ----------
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ---------- navigation ----------
+  function setPanel(name) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+    document.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  document.querySelectorAll('.seg-btn, .tab-btn').forEach(b => {
+    b.addEventListener('click', () => setPanel(b.dataset.panel));
+  });
+
+  // ---------- derived numbers ----------
+  function totalOf(e) { return (e.usStock || 0) + (e.gold || 0) + (e.cash || 0); }
+
+  function render() {
+    document.getElementById('todayPill').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    if (!entries.length) {
+      renderEmpty();
+      return;
+    }
+
+    const latest = entries[entries.length - 1];
+    const prev = entries.length > 1 ? entries[entries.length - 2] : null;
+    const total = totalOf(latest);
+    const prevTotal = prev ? totalOf(prev) : total;
+    const delta = total - prevTotal;
+    const deltaPct = prevTotal ? (delta / prevTotal) * 100 : 0;
+
+    // hero
+    document.getElementById('heroValue').textContent = fmt(total);
+    const chip = document.getElementById('heroDelta');
+    const isGain = delta >= 0;
+    chip.className = 'chip ' + (isGain ? 'gain' : 'loss');
+    chip.innerHTML = (isGain
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 15l6-6 6 6"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>'
+    ) + ' ' + fmt(Math.abs(delta)) + ' (' + fmtPct(deltaPct) + ')';
+    document.getElementById('heroDeltaLabel').textContent = 'since ' + (prev ? prev.date : latest.date);
+
+    // stat tiles
+    document.getElementById('statStock').textContent = fmt(latest.usStock);
+    document.getElementById('statGold').textContent = fmt(latest.gold);
+    document.getElementById('statCash').textContent = fmt(latest.cash);
+    document.getElementById('statCost').textContent = fmt(latest.costOfCapital);
+
+    const unrealized = total - (latest.costOfCapital || 0);
+    const unrealizedPct = latest.costOfCapital ? (unrealized / latest.costOfCapital) * 100 : 0;
+    document.getElementById('statUnreal').textContent = fmt(unrealized);
+    document.getElementById('statUnrealPct').textContent = fmtPct(unrealizedPct);
+    document.getElementById('statUnrealPct').className = 'tile-sub ' + (unrealized >= 0 ? 'gain' : 'loss');
+
+    const realized = latest.withdrawal || 0;
+    document.getElementById('statReal').textContent = fmt(realized);
+    document.getElementById('statRealPct').textContent = realized ? 'cumulative' : '—';
+    document.getElementById('statRealPct').className = 'tile-sub neutral';
+
+    renderPortfolioChart();
+    renderAllocChart(latest);
+    renderHoldings(latest);
+    renderHistoryTable();
+    renderSparkline();
+    renderSymbolDatalist();
+  }
+
+  function renderEmpty() {
+    document.getElementById('heroValue').textContent = '$0';
+    document.getElementById('heroDelta').textContent = '';
+    document.getElementById('heroDeltaLabel').textContent = 'Add your first entry to get started';
+  }
+
+  // ---------- portfolio line chart ----------
+  function filteredEntries() {
+    if (chartRange === 'all') return entries;
+    const days = parseInt(chartRange, 10);
+    const cutoff = new Date(entries[entries.length - 1].date);
+    cutoff.setDate(cutoff.getDate() - days);
+    return entries.filter(e => new Date(e.date) >= cutoff);
+  }
+
+  function renderPortfolioChart() {
+    const data = filteredEntries();
+    const labels = data.map(e => e.date);
+    const values = data.map(e => totalOf(e));
+    const ctx = document.getElementById('portfolioChart');
+
+    const labelMap = { '30': 'Last 30 days', '90': 'Last 90 days', '365': 'Last 12 months', 'all': 'Full history' };
+    document.getElementById('portfolioRangeLabel').textContent = labelMap[chartRange] + ' · ' + data.length + ' pts';
+
+    if (portfolioChart) portfolioChart.destroy();
+    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 190);
+    gradient.addColorStop(0, 'rgba(64,156,255,0.35)');
+    gradient.addColorStop(1, 'rgba(64,156,255,0.0)');
+
+    portfolioChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: '#409CFF',
+          backgroundColor: gradient,
+          borderWidth: 2,
+          fill: true,
+          tension: 0.35,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: '#409CFF',
+          pointHitRadius: 14,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1A1D22', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+            titleColor: '#98989F', bodyColor: '#F5F5F7', titleFont: { size: 11 }, bodyFont: { size: 13, weight: '600' },
+            padding: 10, displayColors: false,
+            callbacks: { label: (c) => fmt(c.parsed.y) }
+          }
+        },
+        scales: {
+          x: { display: false },
+          y: { display: false }
+        }
+      }
+    });
+  }
+
+  function renderSparkline() {
+    const ctx = document.getElementById('heroSpark');
+    const data = entries.slice(-60);
+    const values = data.map(e => totalOf(e));
+    if (sparkChart) sparkChart.destroy();
+    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 130);
+    gradient.addColorStop(0, 'rgba(50,215,75,0.18)');
+    gradient.addColorStop(1, 'rgba(50,215,75,0.0)');
+    sparkChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: values.map((_, i) => i), datasets: [{ data: values, borderColor: 'rgba(50,215,75,0.55)', backgroundColor: gradient, borderWidth: 1.5, fill: true, tension: 0.35, pointRadius: 0 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: { x: { display: false }, y: { display: false } },
+        animation: false
+      }
+    });
+  }
+
+  document.getElementById('rangeToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('.range-btn');
+    if (!btn) return;
+    chartRange = btn.dataset.range;
+    document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderPortfolioChart();
+  });
+
+  // ---------- allocation donut ----------
+  function renderAllocChart(latest) {
+    const ctx = document.getElementById('allocChart');
+    const segs = [
+      { label: 'US Stocks', value: latest.usStock || 0, color: '#409CFF' },
+      { label: 'Gold', value: latest.gold || 0, color: '#D8B868' },
+      { label: 'Cash', value: latest.cash || 0, color: '#32D74B' },
+    ].filter(s => s.value > 0);
+
+    if (allocChart) allocChart.destroy();
+    allocChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: segs.map(s => s.label),
+        datasets: [{ data: segs.map(s => s.value), backgroundColor: segs.map(s => s.color), borderWidth: 0, hoverOffset: 6 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '72%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1A1D22', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+            titleColor: '#98989F', bodyColor: '#F5F5F7', padding: 10, displayColors: true,
+            callbacks: { label: (c) => ' ' + fmt(c.parsed) }
+          }
+        }
+      }
+    });
+
+    const total = segs.reduce((a, s) => a + s.value, 0) || 1;
+    document.getElementById('allocLegend').innerHTML = segs.map(s =>
+      `<div class="legend-item"><span class="legend-dot" style="background:${s.color}"></span>${s.label} · ${((s.value / total) * 100).toFixed(1)}%</div>`
+    ).join('');
+  }
+
+  // ---------- holdings list ----------
+  function renderHoldings(latest) {
+    const sorted = holdings.slice().sort((a, b) => b.value - a.value);
+    const totalVal = sorted.reduce((a, h) => a + (h.value || 0), 0) || 1;
+    document.getElementById('holdingsSub').textContent = sorted.length + ' positions · ' + fmt(totalVal) + ' total';
+
+    document.getElementById('holdingsList').innerHTML = sorted.map((h, i) => {
+      const gain = h.value - h.cost;
+      const gainPct = h.cost ? (gain / h.cost) * 100 : 0;
+      const pctOfPortfolio = (h.value / totalVal) * 100;
+      const c = colorFor(i);
+      return `
+        <div class="holding-row">
+          <div class="holding-badge" style="background:${c}">${h.symbol.slice(0, 4)}</div>
+          <div class="holding-main">
+            <div class="holding-sym">${h.symbol}</div>
+            <div class="holding-cost">Cost ${fmt(h.cost)}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pctOfPortfolio}%; background:${c}"></div></div>
+          </div>
+          <div class="holding-right">
+            <div class="holding-val">${fmt(h.value)}</div>
+            <div class="holding-pct ${gain >= 0 ? 'gain' : 'loss'}" style="color:${gain >= 0 ? 'var(--gain)' : 'var(--loss)'}">${fmtPct(gainPct)}</div>
+          </div>
+        </div>`;
+    }).join('') || '<div class="empty">No holdings yet. Add one in the Edit tab.</div>';
+  }
+
+  function renderSymbolDatalist() {
+    document.getElementById('symbolList').innerHTML = holdings.map(h => `<option value="${h.symbol}">`).join('');
+  }
+
+  // ---------- history table ----------
+  function renderHistoryTable() {
+    const rows = entries.slice().reverse();
+    document.getElementById('historyCount').textContent = rows.length + ' entries';
+    document.getElementById('entriesBody').innerHTML = rows.map(e => `
+      <tr>
+        <td>${e.date}</td>
+        <td class="mono">${fmt(e.usStock)}</td>
+        <td class="mono">${fmt(e.gold)}</td>
+        <td class="mono">${fmt(e.cash)}</td>
+        <td class="mono">${fmt(totalOf(e))}</td>
+        <td><button class="del-btn" data-date="${e.date}">✕</button></td>
+      </tr>`).join('') || '<tr><td colspan="6" class="empty">No entries yet</td></tr>';
+
+    document.getElementById('entriesBody').querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        entries = entries.filter(e => e.date !== btn.dataset.date);
+        await saveEntries();
+        render();
+        showToast('Entry deleted');
+      });
+    });
+  }
+
+  // ---------- forms ----------
+  document.getElementById('f_date').valueAsDate = new Date();
+
+  document.getElementById('entryForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const date = document.getElementById('f_date').value;
+    const usStock = parseFloat(document.getElementById('f_stock').value) || 0;
+    const gold = parseFloat(document.getElementById('f_gold').value) || 0;
+    const cash = parseFloat(document.getElementById('f_cash').value) || 0;
+    const costOfCapital = parseFloat(document.getElementById('f_cost').value) || 0;
+    const notes = document.getElementById('f_notes').value || '';
+
+    const prevWithdrawal = entries.length ? entries[entries.length - 1].withdrawal || 0 : 0;
+    const existingIdx = entries.findIndex(en => en.date === date);
+    const record = { date, usStock, gold, cash, costOfCapital, withdrawal: prevWithdrawal, notes };
+    if (existingIdx >= 0) entries[existingIdx] = { ...entries[existingIdx], ...record };
+    else entries.push(record);
+    entries.sort((a, b) => a.date.localeCompare(b.date));
+
+    await saveEntries();
+    render();
+    showToast('Entry saved for ' + date);
+    e.target.reset();
+    document.getElementById('f_date').valueAsDate = new Date();
+  });
+
+  document.getElementById('saveHoldingBtn').addEventListener('click', async () => {
+    const symbol = document.getElementById('h_symbol').value.trim().toUpperCase();
+    const cost = parseFloat(document.getElementById('h_cost').value);
+    const value = parseFloat(document.getElementById('h_value').value);
+    if (!symbol || isNaN(cost) || isNaN(value)) { showToast('Fill in symbol, cost & value'); return; }
+    const idx = holdings.findIndex(h => h.symbol === symbol);
+    if (idx >= 0) holdings[idx] = { symbol, cost, value };
+    else holdings.push({ symbol, cost, value });
+    await saveHoldings();
+    render();
+    showToast(symbol + ' saved');
+    document.getElementById('h_symbol').value = '';
+    document.getElementById('h_cost').value = '';
+    document.getElementById('h_value').value = '';
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', async () => {
+    if (!confirm('This clears all locally stored entries and holdings. Continue?')) return;
+    entries = seedEntriesFromHistory();
+    holdings = SEED_HOLDINGS.slice();
+    await saveEntries();
+    await saveHoldings();
+    render();
+    showToast('Data reset to seed values');
+  });
+
+  // ---------- export ----------
+  document.getElementById('exportXlsxBtn').addEventListener('click', () => {
+    const wb = XLSX.utils.book_new();
+    const dataRows = entries.map(e => ({
+      Date: e.date,
+      'US Stock Value': e.usStock,
+      'Gold Value': e.gold,
+      Cash: e.cash,
+      'Portfolio Value': totalOf(e),
+      'Cost of Capital': e.costOfCapital,
+      'Unrealized Profit': totalOf(e) - (e.costOfCapital || 0),
+      'Withdrawal (Realized)': e.withdrawal,
+      Notes: e.notes
+    }));
+    const ws1 = XLSX.utils.json_to_sheet(dataRows);
+    XLSX.utils.book_append_sheet(wb, ws1, 'Investment Data');
+
+    const holdingRows = holdings.map(h => ({ Symbol: h.symbol, 'Cost Basis': h.cost, 'Current Value': h.value, 'Gain $': h.value - h.cost, 'Gain %': h.cost ? ((h.value - h.cost) / h.cost) * 100 : 0 }));
+    const ws2 = XLSX.utils.json_to_sheet(holdingRows);
+    XLSX.utils.book_append_sheet(wb, ws2, 'Holdings');
+
+    XLSX.writeFile(wb, 'InvestmentOS_Export_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    showToast('Excel file downloaded');
+  });
+
+  document.getElementById('exportCsvBtn').addEventListener('click', () => {
+    const header = ['Date', 'US Stock Value', 'Gold Value', 'Cash', 'Portfolio Value', 'Cost of Capital', 'Unrealized Profit', 'Withdrawal', 'Notes'];
+    const rows = entries.map(e => [e.date, e.usStock, e.gold, e.cash, totalOf(e), e.costOfCapital, totalOf(e) - (e.costOfCapital || 0), e.withdrawal, (e.notes || '').replace(/,/g, ';')]);
+    const csv = [header.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'InvestmentOS_Export_' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV file downloaded');
+  });
+
+  // ---------- count-up animation ----------
+  function animateHero() {
+    // simple opacity/scale entrance, numbers already rendered
+    const el = document.getElementById('heroCard');
+    el.style.opacity = 0; el.style.transform = 'translateY(8px)';
+    requestAnimationFrame(() => {
+      el.style.transition = 'opacity .5s ease, transform .5s ease';
+      el.style.opacity = 1; el.style.transform = 'none';
+    });
+  }
+
+  // ---------- init ----------
+  (async function init() {
+    await loadData();
+    render();
+    animateHero();
+  })();
+})();
+
+</script>
+</body>
+</html>
