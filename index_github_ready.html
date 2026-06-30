@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" name="viewport"/>
+<title>InvestmentOS</title>
+<meta content="#0B0E11" name="theme-color"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+<meta content="InvestmentOS" name="apple-mobile-web-app-title"/>
+<link href="manifest.json" rel="manifest"/>
+<link href="icon-192.png" rel="apple-touch-icon"/>
+<style>
+  :root{
+    --bg: #0B0E11;
+    --bg-elev: #12161B;
+    --glass: rgba(255,255,255,0.06);
+    --glass-border: rgba(255,255,255,0.10);
+    --ink: #F2F3F5;
+    --ink-dim: #8A8F98;
+    --ink-faint: #5B6168;
+    --gold: #D4AF37;
+    --gold-soft: rgba(212,175,55,0.16);
+    --green: #34C759;
+    --red: #FF453A;
+    --blue: #0A84FF;
+    --radius-lg: 22px;
+    --radius-md: 16px;
+    --radius-sm: 10px;
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+  .num{ font-family: "SF Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  body{
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 15% -10%, rgba(212,175,55,0.10), transparent 45%),
+      radial-gradient(circle at 100% 0%, rgba(10,132,255,0.08), transparent 40%),
+      var(--bg);
+    padding-bottom: 110px;
+  }
+  header.top{
+    position: sticky; top:0; z-index:20;
+    padding: calc(env(safe-area-inset-top) + 14px) 20px 12px;
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    background: rgba(11,14,17,0.72);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display:flex; align-items:baseline; justify-content:space-between;
+  }
+  header.top .brand{ font-size: 15px; font-weight: 700; letter-spacing: 0.2px; color: var(--ink); }
+  header.top .brand span{ color: var(--gold); }
+  header.top .date{ font-size: 12px; color: var(--ink-dim); }
+
+  main{ padding: 18px 20px 0; max-width: 560px; margin: 0 auto; }
+
+  .hero{
+    border-radius: var(--radius-lg);
+    background: linear-gradient(165deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
+    border: 1px solid var(--glass-border);
+    padding: 22px 20px 18px;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before{
+    content:""; position:absolute; inset:0;
+    background: radial-gradient(circle at 85% 0%, rgba(212,175,55,0.14), transparent 55%);
+    pointer-events:none;
+  }
+  .hero .label{ font-size: 13px; color: var(--ink-dim); font-weight: 500; }
+  .hero .value{ font-size: 42px; font-weight: 700; letter-spacing: -1px; margin-top: 4px; }
+  .hero .delta{ display:inline-flex; align-items:center; gap:4px; margin-top: 8px; font-size: 14px; font-weight:600; padding: 4px 10px; border-radius: 999px; }
+  .delta.up{ color: var(--green); background: rgba(52,199,89,0.12); }
+  .delta.down{ color: var(--red); background: rgba(255,69,58,0.12); }
+  .delta.flat{ color: var(--ink-dim); background: rgba(255,255,255,0.06); }
+
+  .grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .card{
+    border-radius: var(--radius-md);
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    padding: 14px 16px;
+  }
+  .card .l{ font-size: 12px; color: var(--ink-dim); display:flex; align-items:center; gap:6px; }
+  .card .v{ font-size: 21px; font-weight: 700; margin-top: 4px; }
+  .dot{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+
+  .section-title{
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--ink-dim); margin: 22px 4px 10px;
+  }
+
+  .panel{
+    border-radius: var(--radius-lg);
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    padding: 16px 16px 18px;
+    margin-bottom: 14px;
+  }
+
+  .fx-row{ display:flex; align-items:center; justify-content:space-between; }
+  .fx-coin{
+    width:46px; height:46px; border-radius:50%;
+    background: conic-gradient(from 180deg, var(--gold), #8a6d1e, var(--gold));
+    display:flex; align-items:center; justify-content:center;
+    font-size: 10px; font-weight:800; color:#1a1505;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.25);
+  }
+
+  .bench-row{ display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size:14px; }
+  .bench-row:last-child{ border-bottom:none; }
+  .bench-row .n{ color: var(--ink-dim); }
+
+  .chart-wrap{ position:relative; height: 120px; margin-top:6px; }
+
+  .history-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 12px 2px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .history-item:last-child{ border-bottom:none; }
+  .history-item .d{ font-size:13px; color: var(--ink-dim); }
+  .history-item .nw{ font-size: 15px; font-weight:700; }
+  .history-item .pieces{ font-size: 11px; color: var(--ink-faint); margin-top:2px; }
+  .empty{ text-align:center; padding: 30px 10px; color: var(--ink-faint); font-size: 13px; }
+
+  .fab{
+    position: fixed; right: 20px; bottom: calc(env(safe-area-inset-bottom) + 24px);
+    width: 58px; height:58px; border-radius: 50%;
+    background: linear-gradient(160deg, var(--gold), #a3812a);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 10px 30px rgba(212,175,55,0.35), 0 2px 6px rgba(0,0,0,0.4);
+    border: none; cursor:pointer; z-index: 25;
+  }
+  .fab svg{ width:24px; height:24px; }
+
+  /* Sheet */
+  .sheet-backdrop{
+    position: fixed; inset:0; background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px); opacity:0; pointer-events:none; transition: opacity .25s ease;
+    z-index: 30;
+  }
+  .sheet-backdrop.open{ opacity:1; pointer-events:auto; }
+  .sheet{
+    position: fixed; left:0; right:0; bottom:0; z-index:31;
+    background: var(--bg-elev);
+    border-top: 1px solid rgba(255,255,255,0.10);
+    border-radius: 24px 24px 0 0;
+    padding: 10px 20px calc(env(safe-area-inset-bottom) + 22px);
+    transform: translateY(100%);
+    transition: transform .32s cubic-bezier(.32,.72,0,1);
+    max-height: 86vh; overflow-y: auto;
+  }
+  .sheet.open{ transform: translateY(0); }
+  .sheet .handle{ width:36px; height:5px; border-radius:3px; background: rgba(255,255,255,0.2); margin: 8px auto 14px; }
+  .sheet h2{ font-size: 19px; margin: 0 0 14px; font-weight:700; }
+  .field{ margin-bottom: 12px; }
+  .field label{ font-size: 12px; color: var(--ink-dim); display:block; margin-bottom: 6px; font-weight:600; }
+  .field input, .field textarea{
+    width:100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm); padding: 12px 12px; color: var(--ink); font-size:16px;
+    font-family: inherit;
+  }
+  .field input.num-in{ font-family:"SF Mono", ui-monospace, monospace; }
+  .field textarea{ resize: vertical; min-height: 56px; }
+  .row2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .save-btn{
+    width:100%; padding: 15px; border:none; border-radius: var(--radius-sm);
+    background: var(--gold); color:#1a1505; font-weight:700; font-size:16px; margin-top:8px;
+    cursor:pointer;
+  }
+  .save-btn:active{ opacity:0.85; }
+  .cancel-btn{
+    width:100%; padding: 12px; border:none; border-radius: var(--radius-sm);
+    background: transparent; color: var(--ink-dim); font-weight:600; font-size:14px; margin-top:6px;
+  }
+  .toast{
+    position: fixed; left:50%; top: calc(env(safe-area-inset-top) + 60px); transform: translateX(-50%) translateY(-20px);
+    background: rgba(30,33,38,0.95); border:1px solid rgba(255,255,255,0.1);
+    padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight:600;
+    opacity:0; transition: all .25s ease; z-index: 50; pointer-events:none;
+  }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+  ::-webkit-scrollbar{ display:none; }
+  .install-note{
+    font-size: 11px; color: var(--ink-faint); text-align:center; margin: 18px 0 6px; line-height:1.5;
+  }
+</style>
+</head>
+<body>
+<header class="top">
+<div class="brand">Investment<span>OS</span></div>
+<div class="date" id="todayLabel"></div>
+</header>
+<main>
+<div class="hero">
+<div class="label">Net Worth</div>
+<div class="value num" id="netWorthVal">$0.00</div>
+<div class="delta flat" id="dayDelta">No prior entry</div>
+</div>
+<div class="grid">
+<div class="card">
+<div class="l"><span class="dot" style="background:var(--blue)"></span>Portfolio</div>
+<div class="v num" id="portfolioVal">$0.00</div>
+</div>
+<div class="card">
+<div class="l"><span class="dot" style="background:var(--gold)"></span>Gold</div>
+<div class="v num" id="goldVal">$0.00</div>
+</div>
+<div class="card">
+<div class="l"><span class="dot" style="background:var(--green)"></span>Cash</div>
+<div class="v num" id="cashVal">$0.00</div>
+</div>
+<div class="card">
+<div class="l"><span class="dot" style="background:var(--ink-dim)"></span>Entries</div>
+<div class="v num" id="entryCount">0</div>
+</div>
+</div>
+<div class="section-title">Markets Today</div>
+<div class="panel">
+<div class="fx-row">
+<div>
+<div class="l" style="font-size:12px;color:var(--ink-dim);">USD / THB</div>
+<div class="v num" id="fxVal" style="font-size:22px;font-weight:700;">—</div>
+</div>
+<div class="fx-coin">฿/$</div>
+</div>
+<div style="margin-top:14px;">
+<div class="bench-row"><span class="n">S&amp;P 500</span><span class="num" id="spVal">—</span></div>
+<div class="bench-row"><span class="n">VOO</span><span class="num" id="vooVal">—</span></div>
+<div class="bench-row"><span class="n">QQQ</span><span class="num" id="qqqVal">—</span></div>
+</div>
+</div>
+<div class="section-title">Net Worth Trend</div>
+<div class="panel">
+<div class="chart-wrap"><svg height="120" id="trendSvg" preserveaspectratio="none" viewbox="0 0 320 120" width="100%"></svg></div>
+</div>
+<div class="section-title">History</div>
+<div class="panel" id="historyPanel">
+<div class="empty" id="emptyState">No entries yet — tap + to log today.</div>
+</div>
+<div class="install-note">Add to Home Screen from Safari's Share menu for the full‑screen app experience.</div>
+</main>
+<button aria-label="Add entry" class="fab" id="openSheetBtn">
+<svg fill="none" stroke="#1a1505" stroke-linecap="round" stroke-width="2.6" viewbox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>
+</button>
+<div class="sheet-backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet">
+<div class="handle"></div>
+<h2>Daily Entry</h2>
+<form id="entryForm">
+<div class="field">
+<label>Date</label>
+<input id="f_date" required="" type="date"/>
+</div>
+<div class="row2">
+<div class="field">
+<label>Portfolio Value ($)</label>
+<input class="num-in" id="f_portfolio" inputmode="decimal" placeholder="0.00" required="" step="0.01" type="number"/>
+</div>
+<div class="field">
+<label>Gold Value ($)</label>
+<input class="num-in" id="f_gold" inputmode="decimal" placeholder="0.00" step="0.01" type="number"/>
+</div>
+</div>
+<div class="row2">
+<div class="field">
+<label>Cash Value ($)</label>
+<input class="num-in" id="f_cash" inputmode="decimal" placeholder="0.00" step="0.01" type="number"/>
+</div>
+<div class="field">
+<label>USD / THB</label>
+<input class="num-in" id="f_fx" inputmode="decimal" placeholder="0.00" step="0.0001" type="number"/>
+</div>
+</div>
+<div class="row2">
+<div class="field">
+<label>S&amp;P 500</label>
+<input class="num-in" id="f_sp" inputmode="decimal" placeholder="0.00" step="0.01" type="number"/>
+</div>
+<div class="field">
+<label>VOO</label>
+<input class="num-in" id="f_voo" inputmode="decimal" placeholder="0.00" step="0.01" type="number"/>
+</div>
+</div>
+<div class="field">
+<label>QQQ</label>
+<input class="num-in" id="f_qqq" inputmode="decimal" placeholder="0.00" step="0.01" type="number"/>
+</div>
+<div class="field">
+<label>Notes</label>
+<textarea id="f_notes" placeholder="Thoughts, news, decisions..."></textarea>
+</div>
+<button class="save-btn" type="submit">Save Entry</button>
+<button class="cancel-btn" id="cancelBtn" type="button">Cancel</button>
+</form>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+  const STORAGE_KEY = 'investmentos_entries_v1';
+
+  function loadEntries(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }catch(e){ return []; }
+  }
+  // Append-only: entries are never overwritten, only added. Same-date re-entry
+  // is stored as a new record with a timestamp; the dashboard reads the latest
+  // per date but history shows every record ever saved.
+  function saveEntry(entry){
+    const entries = loadEntries();
+    entries.push(entry);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  }
+
+  function latestPerDate(entries){
+    const map = new Map();
+    for(const e of entries){
+      const prev = map.get(e.date);
+      if(!prev || e.savedAt > prev.savedAt) map.set(e.date, e);
+    }
+    return Array.from(map.values()).sort((a,b)=> a.date.localeCompare(b.date));
+  }
+
+  function fmtMoney(n){
+    if(n === null || n === undefined || isNaN(n)) return '—';
+    return '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  function fmtNum(n, dp=2){
+    if(n === null || n === undefined || n === '' || isNaN(n)) return '—';
+    return Number(n).toLocaleString('en-US', {minimumFractionDigits:dp, maximumFractionDigits:dp});
+  }
+
+  function netWorth(e){
+    return (Number(e.portfolio)||0) + (Number(e.gold)||0) + (Number(e.cash)||0);
+  }
+
+  function render(){
+    const all = loadEntries();
+    const series = latestPerDate(all);
+    document.getElementById('entryCount').textContent = series.length;
+    document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+
+    const emptyState = document.getElementById('emptyState');
+    const historyPanel = document.getElementById('historyPanel');
+
+    if(series.length === 0){
+      document.getElementById('netWorthVal').textContent = '$0.00';
+      document.getElementById('portfolioVal').textContent = '$0.00';
+      document.getElementById('goldVal').textContent = '$0.00';
+      document.getElementById('cashVal').textContent = '$0.00';
+      document.getElementById('fxVal').textContent = '—';
+      document.getElementById('spVal').textContent = '—';
+      document.getElementById('vooVal').textContent = '—';
+      document.getElementById('qqqVal').textContent = '—';
+      document.getElementById('dayDelta').className = 'delta flat';
+      document.getElementById('dayDelta').textContent = 'No prior entry';
+      renderChart([]);
+      historyPanel.innerHTML = '<div class="empty">No entries yet — tap + to log today.</div>';
+      return;
+    }
+
+    const latest = series[series.length-1];
+    const prior = series.length > 1 ? series[series.length-2] : null;
+    const nw = netWorth(latest);
+
+    document.getElementById('netWorthVal').textContent = fmtMoney(nw);
+    document.getElementById('portfolioVal').textContent = fmtMoney(latest.portfolio);
+    document.getElementById('goldVal').textContent = fmtMoney(latest.gold);
+    document.getElementById('cashVal').textContent = fmtMoney(latest.cash);
+    document.getElementById('fxVal').textContent = latest.fx ? fmtNum(latest.fx, 2) : '—';
+    document.getElementById('spVal').textContent = latest.sp ? fmtNum(latest.sp,2) : '—';
+    document.getElementById('vooVal').textContent = latest.voo ? fmtNum(latest.voo,2) : '—';
+    document.getElementById('qqqVal').textContent = latest.qqq ? fmtNum(latest.qqq,2) : '—';
+
+    const deltaEl = document.getElementById('dayDelta');
+    if(prior){
+      const priorNw = netWorth(prior);
+      const diff = nw - priorNw;
+      const pct = priorNw !== 0 ? (diff/priorNw*100) : 0;
+      const sign = diff > 0 ? '+' : (diff < 0 ? '' : '');
+      deltaEl.className = 'delta ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat');
+      deltaEl.textContent = `${sign}${fmtMoney(diff)} (${sign}${pct.toFixed(2)}%) since ${prior.date}`;
+    } else {
+      deltaEl.className = 'delta flat';
+      deltaEl.textContent = 'First entry logged';
+    }
+
+    renderChart(series);
+
+    // history, most recent first
+    const rev = [...series].reverse();
+    historyPanel.innerHTML = rev.map(e => {
+      const v = netWorth(e);
+      return `<div class="history-item">
+        <div>
+          <div class="d">${e.date}</div>
+          <div class="pieces">P ${fmtMoney(e.portfolio)} · G ${fmtMoney(e.gold)} · C ${fmtMoney(e.cash)}</div>
+        </div>
+        <div class="nw num">${fmtMoney(v)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderChart(series){
+    const svg = document.getElementById('trendSvg');
+    if(series.length < 2){
+      svg.innerHTML = series.length===1
+        ? `<text x="160" y="62" fill="#5B6168" font-size="11" text-anchor="middle" font-family="-apple-system">One entry — trend appears after day two</text>`
+        : `<text x="160" y="62" fill="#5B6168" font-size="11" text-anchor="middle" font-family="-apple-system">No data yet</text>`;
+      return;
+    }
+    const W = 320, H = 120, PAD = 8;
+    const vals = series.map(netWorth);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const range = (max - min) || 1;
+    const stepX = (W - PAD*2) / (vals.length - 1);
+    const pts = vals.map((v,i) => {
+      const x = PAD + i*stepX;
+      const y = H - PAD - ((v - min)/range) * (H - PAD*2);
+      return [x,y];
+    });
+    const linePath = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(2)+','+p[1].toFixed(2)).join(' ');
+    const areaPath = linePath + ` L${pts[pts.length-1][0].toFixed(2)},${H} L${pts[0][0].toFixed(2)},${H} Z`;
+    const up = vals[vals.length-1] >= vals[0];
+    const stroke = up ? '#34C759' : '#FF453A';
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="fillGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${stroke}" stop-opacity="0.30"/>
+          <stop offset="100%" stop-color="${stroke}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${areaPath}" fill="url(#fillGrad)" stroke="none"/>
+      <path d="${linePath}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${pts[pts.length-1][0]}" cy="${pts[pts.length-1][1]}" r="3.2" fill="${stroke}"/>
+    `;
+  }
+
+  // Sheet open/close
+  const sheet = document.getElementById('sheet');
+  const backdrop = document.getElementById('backdrop');
+  function openSheet(){
+    document.getElementById('f_date').value = new Date().toISOString().slice(0,10);
+    sheet.classList.add('open');
+    backdrop.classList.add('open');
+  }
+  function closeSheet(){
+    sheet.classList.remove('open');
+    backdrop.classList.remove('open');
+  }
+  document.getElementById('openSheetBtn').addEventListener('click', openSheet);
+  document.getElementById('cancelBtn').addEventListener('click', closeSheet);
+  backdrop.addEventListener('click', closeSheet);
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 1800);
+  }
+
+  document.getElementById('entryForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const entry = {
+      date: document.getElementById('f_date').value,
+      portfolio: document.getElementById('f_portfolio').value,
+      gold: document.getElementById('f_gold').value,
+      cash: document.getElementById('f_cash').value,
+      fx: document.getElementById('f_fx').value,
+      sp: document.getElementById('f_sp').value,
+      voo: document.getElementById('f_voo').value,
+      qqq: document.getElementById('f_qqq').value,
+      notes: document.getElementById('f_notes').value,
+      savedAt: Date.now()
+    };
+    saveEntry(entry);
+    closeSheet();
+    showToast('Entry saved');
+    this.reset();
+    render();
+  });
+
+  render();
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+</script>
+<script id="embeddedData" type="application/json">[{"date": "2025-08-19", "portfolio": 14107.49, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-20", "portfolio": 14041.949999999999, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-21", "portfolio": 14014.08, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-22", "portfolio": 14218.109999999999, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-23", "portfolio": 14218.109999999999, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-24", "portfolio": 14218.109999999999, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-25", "portfolio": 14095.66, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-26", "portfolio": 14388.13, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-27", "portfolio": 14413.89, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-28", "portfolio": 14368.89, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-29", "portfolio": 14130.51, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-30", "portfolio": 14130.51, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-08-31", "portfolio": 14130.51, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-01", "portfolio": 14130.51, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-02", "portfolio": 13975.359999999999, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-03", "portfolio": 14202.23, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-04", "portfolio": 14252.779999999999, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-05", "portfolio": 14011.51, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-06", "portfolio": 14011.51, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-07", "portfolio": 14011.51, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-08", "portfolio": 13977.59, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-09", "portfolio": 36583.62, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-10", "portfolio": 36750.21, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-11", "portfolio": 36952.49, "gold": 0.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-12", "portfolio": 49962.71, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-13", "portfolio": 49962.71, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-14", "portfolio": 49962.71, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-15", "portfolio": 64815.6, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-16", "portfolio": 65267.200000000004, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-17", "portfolio": 65284.66, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-18", "portfolio": 65643.91, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-19", "portfolio": 66512.82999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-20", "portfolio": 66512.82999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-21", "portfolio": 66512.82999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-22", "portfolio": 67871.23, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-23", "portfolio": 66970.03, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-24", "portfolio": 67456.38, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-25", "portfolio": 67164.5, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-26", "portfolio": 68082.28, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-27", "portfolio": 68082.28, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-28", "portfolio": 68082.28, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-29", "portfolio": 68428.29, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-09-30", "portfolio": 69127.59, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-01", "portfolio": 70791.26, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-02", "portfolio": 70097.51999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-03", "portfolio": 70097.51999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-04", "portfolio": 70097.51999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-05", "portfolio": 70097.51999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-06", "portfolio": 70797.29, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-07", "portfolio": 70073.81, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-08", "portfolio": 70567.98, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-09", "portfolio": 70744.76999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-10", "portfolio": 68561.38, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-11", "portfolio": 68561.38, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-12", "portfolio": 68561.38, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-13", "portfolio": 69914.42, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-14", "portfolio": 69034.95999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-15", "portfolio": 69384.18, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-16", "portfolio": 68721.32999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-17", "portfolio": 70114.93999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-18", "portfolio": 70114.93999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-19", "portfolio": 70114.93999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-20", "portfolio": 71518.42, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-21", "portfolio": 71052.87, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-22", "portfolio": 71079.81, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-23", "portfolio": 71861.81999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-24", "portfolio": 71887.39, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-25", "portfolio": 71887.39, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-26", "portfolio": 71887.39, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-27", "portfolio": 73192.97, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-28", "portfolio": 73972.29999999999, "gold": 3000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-29", "portfolio": 88923.70999999999, "gold": 10000.0, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-30", "portfolio": 91477.27999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-10-31", "portfolio": 92422.35999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-01", "portfolio": 92422.35999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-02", "portfolio": 92422.35999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-03", "portfolio": 122813.62, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-04", "portfolio": 121135.65999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-05", "portfolio": 122632.20999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-06", "portfolio": 121213.16999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-07", "portfolio": 120406.49999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-08", "portfolio": 120406.49999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-09", "portfolio": 120406.49999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-10", "portfolio": 122373.04, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-11", "portfolio": 122782.18, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-12", "portfolio": 122730.23, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-13", "portfolio": 119875.02999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-14", "portfolio": 120304.38999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-15", "portfolio": 120304.38999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-16", "portfolio": 120304.38999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-17", "portfolio": 119503.66999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-18", "portfolio": 119053.62999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-19", "portfolio": 119562.18, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-20", "portfolio": 117626.23999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-21", "portfolio": 118371.09, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-22", "portfolio": 118371.09, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-23", "portfolio": 118371.09, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-24", "portfolio": 121289.73999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-25", "portfolio": 122397.29, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-26", "portfolio": 122513.18999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-27", "portfolio": 122513.18999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-28", "portfolio": 122290.62999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-29", "portfolio": 122290.62999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-11-30", "portfolio": 122290.62999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-01", "portfolio": 121216.54, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-02", "portfolio": 121165.04999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-03", "portfolio": 121124.68, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-04", "portfolio": 122283.73, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-05", "portfolio": 121930.98, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-06", "portfolio": 121930.98, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-07", "portfolio": 121930.98, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-08", "portfolio": 120949.57999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-09", "portfolio": 120676.87, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-10", "portfolio": 120829.63999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-11", "portfolio": 120843.80999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-12", "portfolio": 120843.80999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-13", "portfolio": 120843.80999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-14", "portfolio": 120843.80999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-15", "portfolio": 120667.48999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-16", "portfolio": 121700.48, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-17", "portfolio": 119009.18999999999, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2025-12-18", "portfolio": 220550.28, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-19", "portfolio": 222557.56999999998, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-20", "portfolio": 222557.56999999998, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-21", "portfolio": 222557.56999999998, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-22", "portfolio": 222557.56999999998, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-23", "portfolio": 224265.84, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-24", "portfolio": 225807.19999999998, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-25", "portfolio": 225807.19999999998, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-26", "portfolio": 224709.4, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-27", "portfolio": 224709.4, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-28", "portfolio": 224709.4, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-29", "portfolio": 223863.62999999998, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-30", "portfolio": 225310.75999999998, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2025-12-31", "portfolio": 224257.08, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2026-01-01", "portfolio": 224257.08, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2026-01-02", "portfolio": 224257.08, "gold": 13000.37, "cash": 50482.15, "savedAt": 0}, {"date": "2026-01-03", "portfolio": 224257.08, "gold": 13000.37, "cash": 25482.15, "savedAt": 0}, {"date": "2026-01-04", "portfolio": 224257.08, "gold": 13000.37, "cash": 25482.15, "savedAt": 0}, {"date": "2026-01-05", "portfolio": 223989.41999999998, "gold": 13000.37, "cash": 10482.15, "savedAt": 0}, {"date": "2026-01-06", "portfolio": 221387.99, "gold": 13000.37, "cash": 10482.15, "savedAt": 0}, {"date": "2026-01-07", "portfolio": 222219.36, "gold": 13000.37, "cash": 10482.15, "savedAt": 0}, {"date": "2026-01-08", "portfolio": 221619.46, "gold": 13000.37, "cash": 10482.15, "savedAt": 0}, {"date": "2026-01-09", "portfolio": 222037.19999999998, "gold": 13000.37, "cash": 10482.15, "savedAt": 0}, {"date": "2026-01-10", "portfolio": 222037.19999999998, "gold": 13000.37, "cash": 10482.15, "savedAt": 0}, {"date": "2026-01-11", "portfolio": 222037.19999999998, "gold": 13000.37, "cash": 10482.15, "savedAt": 0}, {"date": "2026-01-12", "portfolio": 221347.62, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-13", "portfolio": 221276.84, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-14", "portfolio": 220230.75, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-15", "portfolio": 219841.16999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-16", "portfolio": 219619.55, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-17", "portfolio": 219619.55, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-18", "portfolio": 219619.55, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-19", "portfolio": 219619.55, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-20", "portfolio": 211727.88999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-21", "portfolio": 214576.16999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-22", "portfolio": 220224.16999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-23", "portfolio": 219528.81999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-24", "portfolio": 219528.81999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-25", "portfolio": 219528.81999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-26", "portfolio": 217760.59999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-27", "portfolio": 218354.34999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-28", "portfolio": 218354.34999999998, "gold": 13000.37, "cash": 482.15, "savedAt": 0}, {"date": "2026-01-29", "portfolio": 220154.5, "gold": 13637.2, "cash": 482.58, "savedAt": 0}, {"date": "2026-01-30", "portfolio": 220239.91, "gold": 13637.2, "cash": 482.58, "savedAt": 0}, {"date": "2026-01-31", "portfolio": 220239.91, "gold": 13637.2, "cash": 482.58, "savedAt": 0}, {"date": "2026-02-01", "portfolio": 220239.91, "gold": 13637.2, "cash": 482.58, "savedAt": 0}, {"date": "2026-02-02", "portfolio": 320253.04000000004, "gold": 13637.2, "cash": 50482.58, "savedAt": 0}, {"date": "2026-02-03", "portfolio": 315342.16000000003, "gold": 13637.2, "cash": 20482.58, "savedAt": 0}, {"date": "2026-02-04", "portfolio": 312728.9, "gold": 13637.2, "cash": 20482.58, "savedAt": 0}, {"date": "2026-02-05", "portfolio": 307421.06000000006, "gold": 13637.2, "cash": 20482.58, "savedAt": 0}, {"date": "2026-02-06", "portfolio": 398384.63999999996, "gold": 12317.67, "cash": 628.75, "savedAt": 0}, {"date": "2026-02-07", "portfolio": 398170.32999999996, "gold": 12317.67, "cash": 414.44, "savedAt": 0}, {"date": "2026-02-08", "portfolio": 398170.32999999996, "gold": 12317.67, "cash": 414.44, "savedAt": 0}, {"date": "2026-02-09", "portfolio": 402169.82999999996, "gold": 12317.67, "cash": 414.44, "savedAt": 0}, {"date": "2026-02-10", "portfolio": 400163.34, "gold": 12463.82, "cash": 434.96, "savedAt": 0}, {"date": "2026-02-11", "portfolio": 399570.38999999996, "gold": 12420.87, "cash": 434.79, "savedAt": 0}, {"date": "2026-02-12", "portfolio": 391988.62, "gold": 12377.92, "cash": 434.62, "savedAt": 0}, {"date": "2026-02-13", "portfolio": 388432.13, "gold": 12334.97, "cash": 434.45, "savedAt": 0}, {"date": "2026-02-14", "portfolio": 388389.01000000007, "gold": 12292.02, "cash": 434.28, "savedAt": 0}, {"date": "2026-02-15", "portfolio": 388345.89, "gold": 12249.07, "cash": 434.11, "savedAt": 0}, {"date": "2026-02-16", "portfolio": 388302.77, "gold": 12206.12, "cash": 433.94, "savedAt": 0}, {"date": "2026-02-17", "portfolio": 390186.77, "gold": 12163.17, "cash": 433.77, "savedAt": 0}, {"date": "2026-02-18", "portfolio": 393621.1, "gold": 12120.22, "cash": 433.6, "savedAt": 0}, {"date": "2026-02-19", "portfolio": 392405.55, "gold": 12077.27, "cash": 433.43, "savedAt": 0}, {"date": "2026-02-20", "portfolio": 393442.8, "gold": 12034.32, "cash": 433.26, "savedAt": 0}, {"date": "2026-02-21", "portfolio": 393399.68, "gold": 11991.37, "cash": 433.09, "savedAt": 0}, {"date": "2026-02-22", "portfolio": 393356.55999999994, "gold": 11948.42, "cash": 432.92, "savedAt": 0}, {"date": "2026-02-23", "portfolio": 411874.83, "gold": 12739.45, "cash": 461.2, "savedAt": 0}, {"date": "2026-02-24", "portfolio": 415146.21, "gold": 12751.2, "cash": 461.05, "savedAt": 0}, {"date": "2026-02-25", "portfolio": 420231.66000000003, "gold": 12762.95, "cash": 460.9, "savedAt": 0}, {"date": "2026-02-26", "portfolio": 409523.8, "gold": 12774.7, "cash": 460.75, "savedAt": 0}, {"date": "2026-02-27", "portfolio": 399873.83, "gold": 12786.45, "cash": 460.6, "savedAt": 0}, {"date": "2026-02-28", "portfolio": 399885.43000000005, "gold": 12798.2, "cash": 460.45, "savedAt": 0}, {"date": "2026-03-01", "portfolio": 399897.03, "gold": 12809.95, "cash": 460.3, "savedAt": 0}, {"date": "2026-03-02", "portfolio": 404299.49000000005, "gold": 12821.7, "cash": 460.15, "savedAt": 0}, {"date": "2026-03-03", "portfolio": 398346.38, "gold": 12833.45, "cash": 460.0, "savedAt": 0}, {"date": "2026-03-04", "portfolio": 410822.57, "gold": 12845.2, "cash": 459.85, "savedAt": 0}, {"date": "2026-03-05", "portfolio": 408790.17000000004, "gold": 12856.95, "cash": 459.7, "savedAt": 0}, {"date": "2026-03-06", "portfolio": 403194.79, "gold": 12868.7, "cash": 459.55, "savedAt": 0}, {"date": "2026-03-07", "portfolio": 403206.39, "gold": 12880.45, "cash": 459.4, "savedAt": 0}, {"date": "2026-03-08", "portfolio": 403217.99, "gold": 12892.2, "cash": 459.25, "savedAt": 0}, {"date": "2026-03-09", "portfolio": 413026.99, "gold": 12903.95, "cash": 459.1, "savedAt": 0}, {"date": "2026-03-10", "portfolio": 411031.22, "gold": 13047.04, "cash": 457.14, "savedAt": 0}, {"date": "2026-03-11", "portfolio": 412380.76, "gold": 13047.04, "cash": 457.14, "savedAt": 0}, {"date": "2026-03-12", "portfolio": 413830.80000000005, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-13", "portfolio": 406558.61000000004, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-14", "portfolio": 406558.61000000004, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-15", "portfolio": 406558.61000000004, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-16", "portfolio": 414587.68000000005, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-17", "portfolio": 412041.86000000004, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-18", "portfolio": 405564.73000000004, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-19", "portfolio": 404920.85000000003, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-20", "portfolio": 392698.28, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-21", "portfolio": 392698.28, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-22", "portfolio": 392698.28, "gold": 13023.5, "cash": 473.15, "savedAt": 0}, {"date": "2026-03-23", "portfolio": 504128.75, "gold": 11223.85, "cash": 30474.5, "savedAt": 0}, {"date": "2026-03-24", "portfolio": 498499.91, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-03-25", "portfolio": 505279.12999999995, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-03-26", "portfolio": 492264.02999999997, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-03-27", "portfolio": 513240.93, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-03-28", "portfolio": 513240.93, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-03-29", "portfolio": 513240.93, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-03-30", "portfolio": 507809.56999999995, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-03-31", "portfolio": 528922.58, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-01", "portfolio": 534245.3, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-02", "portfolio": 525113.86, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-03", "portfolio": 525113.86, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-04", "portfolio": 525113.86, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-05", "portfolio": 525113.86, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-06", "portfolio": 521505.12, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-07", "portfolio": 518116.61, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-08", "portfolio": 520090.62, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-09", "portfolio": 519681.12, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-10", "portfolio": 525019.75, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-11", "portfolio": 525019.75, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-12", "portfolio": 525019.75, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-13", "portfolio": 527627.8899999999, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-14", "portfolio": 540654.75, "gold": 11776.47, "cash": 30474.5, "savedAt": 0}, {"date": "2026-04-15", "portfolio": 575336.77, "gold": 12213.54, "cash": 50262.76, "savedAt": 0}, {"date": "2026-04-16", "portfolio": 571990.0, "gold": 12213.54, "cash": 50262.76, "savedAt": 0}, {"date": "2026-04-17", "portfolio": 585084.11, "gold": 12213.54, "cash": 50262.76, "savedAt": 0}, {"date": "2026-04-18", "portfolio": 585084.11, "gold": 12213.54, "cash": 50262.76, "savedAt": 0}, {"date": "2026-04-19", "portfolio": 585084.11, "gold": 12213.54, "cash": 50262.76, "savedAt": 0}, {"date": "2026-04-20", "portfolio": 581243.99, "gold": 12213.54, "cash": 50262.76, "savedAt": 0}, {"date": "2026-04-21", "portfolio": 574295.73, "gold": 12213.54, "cash": 50262.76, "savedAt": 0}, {"date": "2026-04-22", "portfolio": 582512.9400000001, "gold": 12213.54, "cash": 50262.76, "savedAt": 0}, {"date": "2026-04-23", "portfolio": 572790.51, "gold": 12213.54, "cash": 50262.76, "savedAt": 0}, {"date": "2026-04-24", "portfolio": 581981.99, "gold": 12068.2, "cash": 5396.5, "savedAt": 0}, {"date": "2026-04-25", "portfolio": 581981.99, "gold": 12068.2, "cash": 5396.5, "savedAt": 0}, {"date": "2026-04-26", "portfolio": 581981.99, "gold": 12068.2, "cash": 5396.5, "savedAt": 0}, {"date": "2026-04-27", "portfolio": 591844.0, "gold": 12010.89, "cash": 5396.5, "savedAt": 0}, {"date": "2026-04-28", "portfolio": 591289.9600000001, "gold": 11844.03, "cash": 5396.5, "savedAt": 0}, {"date": "2026-04-29", "portfolio": 580113.39, "gold": 11677.17, "cash": 5396.5, "savedAt": 0}, {"date": "2026-04-30", "portfolio": 587187.2100000001, "gold": 11510.31, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-01", "portfolio": 594629.13, "gold": 11343.45, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-02", "portfolio": 594462.27, "gold": 11176.59, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-03", "portfolio": 594295.41, "gold": 11009.73, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-04", "portfolio": 595088.02, "gold": 10842.87, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-05", "portfolio": 605670.81, "gold": 10676.01, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-06", "portfolio": 610032.9, "gold": 10509.15, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-07", "portfolio": 618907.81, "gold": 10342.29, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-08", "portfolio": 618740.9500000001, "gold": 10175.43, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-09", "portfolio": 618574.09, "gold": 10008.57, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-10", "portfolio": 618407.23, "gold": 9841.71000000002, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-11", "portfolio": 618848.5, "gold": 9674.85000000002, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-12", "portfolio": 618044.41, "gold": 9507.99000000002, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-13", "portfolio": 632112.16, "gold": 9341.13000000002, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-14", "portfolio": 628975.63, "gold": 9174.27000000002, "cash": 5396.5, "savedAt": 0}, {"date": "2026-05-15", "portfolio": 639327.31, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-16", "portfolio": 639327.31, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-17", "portfolio": 639327.31, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-18", "portfolio": 633054.9500000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-19", "portfolio": 630153.2000000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-20", "portfolio": 641495.2100000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-21", "portfolio": 639174.99, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-22", "portfolio": 642671.7200000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-23", "portfolio": 642671.7200000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-24", "portfolio": 642671.7200000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-25", "portfolio": 642671.7200000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-26", "portfolio": 643847.38, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-27", "portfolio": 648804.74, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-28", "portfolio": 657857.7100000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-29", "portfolio": 648432.9800000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-30", "portfolio": 648432.9800000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-05-31", "portfolio": 648432.9800000001, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-06-01", "portfolio": 647993.28, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-06-02", "portfolio": 648808.31, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-06-03", "portfolio": 641681.93, "gold": 11882.03, "cash": 34219.64, "savedAt": 0}, {"date": "2026-06-04", "portfolio": 619606.41, "gold": 11546.39, "cash": 2155.96, "savedAt": 0}, {"date": "2026-06-05", "portfolio": 592886.38, "gold": 11546.39, "cash": 2155.96, "savedAt": 0}, {"date": "2026-06-06", "portfolio": 592886.38, "gold": 11546.39, "cash": 2155.96, "savedAt": 0}, {"date": "2026-06-07", "portfolio": 592886.38, "gold": 11546.39, "cash": 2155.96, "savedAt": 0}, {"date": "2026-06-08", "portfolio": 608750.76, "gold": 11546.39, "cash": 2155.96, "savedAt": 0}, {"date": "2026-06-09", "portfolio": 703295.7799999999, "gold": 10900.35, "cash": 2156.11, "savedAt": 0}, {"date": "2026-06-10", "portfolio": 831623.01, "gold": 10591.24, "cash": 77330.86, "savedAt": 0}, {"date": "2026-06-11", "portfolio": 850805.83, "gold": 11177.12, "cash": 77330.86, "savedAt": 0}, {"date": "2026-06-12", "portfolio": 844676.1799999999, "gold": 11177.12, "cash": 67479.45, "savedAt": 0}, {"date": "2026-06-13", "portfolio": 844676.1799999999, "gold": 11177.12, "cash": 67479.45, "savedAt": 0}, {"date": "2026-06-14", "portfolio": 844676.1799999999, "gold": 11177.12, "cash": 67479.45, "savedAt": 0}, {"date": "2026-06-15", "portfolio": 863146.49, "gold": 11181.25, "cash": 67480.21, "savedAt": 0}, {"date": "2026-06-16", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-17", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-18", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-19", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-20", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-21", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-22", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-23", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-24", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-25", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-26", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-27", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-28", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-29", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-06-30", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-01", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-02", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-03", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-04", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-05", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-06", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-07", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-08", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-09", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-10", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-11", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-12", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-13", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-14", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-15", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-16", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-17", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-18", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-19", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-20", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-21", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-22", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-23", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-24", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-25", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-26", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-27", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-28", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-29", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-30", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-07-31", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-01", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-02", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-03", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-04", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-05", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-06", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-07", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-08", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-09", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-10", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-11", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-12", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-13", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-14", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-15", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-16", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-17", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-18", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-19", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-20", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-21", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-22", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-23", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-24", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-25", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-26", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-27", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-28", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-29", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-30", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-08-31", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-01", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-02", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-03", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-04", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-05", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-06", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-07", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-08", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-09", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-10", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-11", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-12", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-13", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-14", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-15", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-16", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-17", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-18", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-19", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-20", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-21", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-22", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-23", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-24", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-25", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-26", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-27", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-28", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-29", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-09-30", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-01", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-02", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-03", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-04", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-05", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-06", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-07", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-08", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-09", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-10", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-11", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-12", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-13", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-14", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-15", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-16", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-17", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-18", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-19", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-20", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-21", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-22", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-23", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-24", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-25", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-26", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-27", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-28", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-29", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-30", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-10-31", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-01", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-02", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-03", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-04", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-05", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-06", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-07", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-08", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-09", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-10", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-11", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-12", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-13", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-14", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-15", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-16", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-17", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-18", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-19", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-20", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-21", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-22", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-23", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-24", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-25", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-26", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-27", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-28", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-29", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-11-30", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-01", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-02", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-03", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-04", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-05", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-06", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-07", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-08", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-09", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-10", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-11", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-12", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-13", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-14", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-15", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-16", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-17", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-18", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-19", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-20", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-21", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-22", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-23", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-24", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-25", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-26", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-27", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-28", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-29", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-30", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}, {"date": "2026-12-31", "portfolio": 0.0, "gold": 0.0, "cash": 0.0, "savedAt": 0}]</script><script>
+const embedded=JSON.parse(document.getElementById('embeddedData').textContent);
+loadEntries=()=>embedded;
+render();
+</script></body>
+</html>
